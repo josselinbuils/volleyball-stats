@@ -62,7 +62,7 @@ def cached(path: Path, name: str, parse: Callable[[], dict], pack: Callable[[dic
 def parsed_players(path: Path, share: jobs.Share = jobs.quiet) -> dict[str, np.ndarray]:
     """players.csv's columns parsed, CHUNK_LINES at a time."""
     size, done, numbers, teams = max(path.stat().st_size, 1), 0, [], []
-    with open(path) as f, warnings.catch_warnings():
+    with open(path, encoding="utf-8") as f, warnings.catch_warnings():
         warnings.simplefilter("ignore", UserWarning)
         header = f.readline()
         if tuple(header.strip().split(",")) != PLAYERS:
@@ -105,7 +105,7 @@ def unpacked_players(kept: dict[str, np.ndarray]) -> dict[str, np.ndarray]:
 
 def parsed_ball(path: Path) -> dict[str, np.ndarray]:
     """ball.csv's columns parsed."""
-    with open(path, newline="") as f:
+    with open(path, newline="", encoding="utf-8") as f:
         rows = csv.reader(f)
         if tuple(next(rows, ())) != BALL:
             raise ValueError(f"{path}: not ball.csv's columns")

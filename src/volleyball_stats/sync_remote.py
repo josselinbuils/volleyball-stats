@@ -26,7 +26,7 @@ def read(root, match):
     path = os.path.join(root, "claims", match + ".json")
     found = {"version": 0, "pushed": None, "pushedBy": None, "pushing": None}
     if os.path.exists(path):
-        with open(path) as f:
+        with open(path, encoding="utf-8") as f:
             found.update({k: v for k, v in json.load(f).items() if k in found})
     return found
 
@@ -35,7 +35,7 @@ def write(root, match, record):
     folder = os.path.join(root, "claims")
     os.makedirs(folder, exist_ok=True)
     path = os.path.join(folder, match + ".json")
-    with open(path + ".tmp", "w") as f:
+    with open(path + ".tmp", "w", encoding="utf-8") as f:
         json.dump({k: v for k, v in record.items() if k != "day"}, f)
     os.replace(path + ".tmp", path)
 

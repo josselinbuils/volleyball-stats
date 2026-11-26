@@ -13,7 +13,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
-from volleyball_stats import git_check
+from volleyball_stats import git_check, procs
 
 # A 2-hour match: about 8 GB of RAM at its peak (docs/setup.md), its 4K video about 60 GB, twice that while it is imported.
 RAM_GB, WARN_RAM_GB = 12, 16
@@ -22,17 +22,26 @@ MODELS = Path("models")
 
 
 def system() -> str:
-    """"mac", "wsl" or "linux"."""
+    """"mac", "windows", "wsl" or "linux"."""
     if platform.system() == "Darwin":
         return "mac"
+    if platform.system() == "Windows":
+        return "windows"
     try:
-        return "wsl" if "microsoft" in Path("/proc/version").read_text().lower() else "linux"
+        return "wsl" if "microsoft" in Path("/proc/version").read_text(encoding="utf-8").lower() else "linux"
     except OSError:
         return "linux"
 
 
+# winget's names of the tools.
+WINGET = {"ffmpeg": "Gyan.FFmpeg", "git": "Git.Git"}
+
+
 def install_command(packages: list[str]) -> str:
-    return f"brew install {' '.join(packages)}" if system() == "mac" else f"sudo apt install -y {' '.join(packages)}"
+    kind = system()
+    if kind == "windows":
+        return "; ".join(f"winget install --scope user {WINGET[p]}" for p in packages)
+    return f"brew install {' '.join(packages)}" if kind == "mac" else f"sudo apt install -y {' '.join(packages)}"
 
 
 def tools() -> dict:
@@ -50,7 +59,7 @@ def gpu() -> dict:
     if torch.cuda.is_available():
         return {"id": "gpu", "status": "ok", "kind": "cuda", "name": torch.cuda.get_device_name()}
     if torch.backends.mps.is_available():
-        chip = subprocess.run(["sysctl", "-n", "machdep.cpu.brand_string"], capture_output=True, text=True).stdout.strip()
+        chip = subprocess.run(["sysctl", "-n", "machdep.cpu.brand_string"], capture_output=True, text=True, encoding="utf-8", errors="replace").stdout.strip()
         return {"id": "gpu", "status": "ok", "kind": "mps", "name": chip or "Apple"}
     smi = shutil.which("nvidia-smi") or ("/usr/lib/wsl/lib/nvidia-smi" if Path("/usr/lib/wsl/lib/nvidia-smi").exists() else None)
     if smi:
@@ -59,10 +68,10 @@ def gpu() -> dict:
 
 
 def memory() -> dict:
-    try:
-        total = os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_PHYS_PAGES") / 1e9
-    except (ValueError, OSError):
+    found = procs.total_memory()
+    if found is None:
         return {"id": "memory", "status": "ok", "gb": None}
+    total = found / 1e9
     status = "error" if total < RAM_GB else "warn" if total < WARN_RAM_GB else "ok"
     return {"id": "memory", "status": status, "gb": round(total), "wsl": system() == "wsl"}
 
@@ -95,8 +104,9 @@ def code() -> dict:
 def busy() -> dict:
     from volleyball_stats import match
 
-    reasons = match.slow_run_reasons(os.nice(0), os.getloadavg()[0], os.cpu_count() or 1)
-    return {"id": "busy", "status": "warn" if reasons else "ok", "load": round(os.getloadavg()[0], 1), "cores": os.cpu_count(), "nice": os.nice(0)}
+    nice, load = procs.priority(), procs.load()
+    reasons = match.slow_run_reasons(nice, load, os.cpu_count() or 1)
+    return {"id": "busy", "status": "warn" if reasons else "ok", "load": round(load, 1), "cores": os.cpu_count(), "nice": nice}
 
 
 def speed(outputs: Path = Path("outputs")) -> dict:

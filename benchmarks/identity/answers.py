@@ -21,9 +21,9 @@ KINDS = ("same", "different", "not_player", "cut")
 
 def load(match: Path, video: Path) -> dict:
     """identify's inputs from a match folder, as identity.rerun reads them."""
-    with open(match / "rallies.csv") as f:
+    with open(match / "rallies.csv", encoding="utf-8") as f:
         rallies = list(csv.DictReader(f))
-    with open(match / "actions.csv") as f:
+    with open(match / "actions.csv", encoding="utf-8") as f:
         typed = list(csv.DictReader(f))
     return {
         "windows": [(int(r["start_frame"]), int(r["end_frame"])) for r in rallies],
@@ -80,7 +80,7 @@ def main() -> None:
     parser.add_argument("--sharpen", type=float, nargs="+", default=[identity.SHARPEN], help="identity.SHARPEN values to score")
     args = parser.parse_args()
     inputs = load(args.match, args.video)
-    log = json.loads((args.match / "identity_answers.json").read_text())["log"]
+    log = json.loads((args.match / "identity_answers.json").read_text(encoding="utf-8"))["log"]
     names = [(e["ref"], e["name"]) for e in identity.read_names(args.match) if e.get("name")]
     numbers = jerseys.load(args.match)
     for share in args.sharpen:

@@ -21,7 +21,7 @@ from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
 
-from volleyball_stats import backup, files, jobs, matches
+from volleyball_stats import backup, files, jobs, matches, transfer
 
 # Per machine, not copied: the server's version this machine's copy started from, and its files' signature then.
 STATE = backup.STATE
@@ -53,7 +53,7 @@ HOSTING = ("upload", "key", "url", "site")
 def server(outputs: Path) -> dict | None:
     """The hosting server's `upload`, `key`, `url` and `site`: outputs/server.json's (the app's "Site" tab), completed
     by a match's publish.json; None without an address and key."""
-    given = (json.loads(p.read_text()) for p in sorted((outputs / "matches").glob(f"*/{matches.PUBLISH}")))
+    given = (json.loads(p.read_text(encoding="utf-8")) for p in sorted((outputs / "matches").glob(f"*/{matches.PUBLISH}")))
     found = next((c for c in given if c.get("upload") and c.get("key")), {})
     saved = files.read_json(outputs / SERVER, {})
     # An address without its folder (`root@HOST:`, written before the tab asked for it) takes the match's.
@@ -68,7 +68,7 @@ def auto(outputs: Path) -> bool:
     default once a server is set."""
     path = outputs / BACKUP
     if path.exists():
-        return json.loads(path.read_text()).get("auto") is True
+        return json.loads(path.read_text(encoding="utf-8")).get("auto") is True
     return server(outputs) is not None
 
 
@@ -76,7 +76,7 @@ def shared_settings(config: dict, root: str | None = None) -> dict:
     """The settings the machines share, from the server; RuntimeError when it cannot be read."""
     root = root or backup.ROOT
     host, ssh = backup.connection(config)
-    run = subprocess.run([*ssh, host, f"cat {shlex.quote(f'{root}/{SETTINGS}')} 2>/dev/null || echo '{{}}'"], capture_output=True, text=True, timeout=30)
+    run = subprocess.run([*ssh, host, f"cat {shlex.quote(f'{root}/{SETTINGS}')} 2>/dev/null || echo '{{}}'"], capture_output=True, text=True, timeout=30, encoding="utf-8", errors="replace")
     if run.returncode:
         raise RuntimeError(run.stderr.strip() or f"ssh: {run.returncode}")
     return json.loads(run.stdout or "{}")
@@ -89,7 +89,7 @@ def share_settings(config: dict, changes: dict, root: str | None = None) -> None
     path = shlex.quote(f"{root}/{SETTINGS}")
     command = f"mkdir -p {shlex.quote(root)} && chmod 700 {shlex.quote(root)} && cat > {path}.tmp && mv {path}.tmp {path}"
     text = json.dumps({**shared_settings(config, root), **changes})
-    run = subprocess.run([*ssh, host, command], input=text, capture_output=True, text=True, timeout=30)
+    run = subprocess.run([*ssh, host, command], input=text, capture_output=True, text=True, timeout=30, encoding="utf-8", errors="replace")
     if run.returncode:
         raise RuntimeError(run.stderr.strip() or f"ssh: {run.returncode}")
 
@@ -112,7 +112,7 @@ def remote(config: dict, op: str, match: str = "-", base: int = 0, force: bool =
     command = f"mkdir -p {shlex.quote(root)} && chmod 700 {shlex.quote(root)} && flock {shlex.quote(root + '/.claims.lock')} python3 - " + " ".join(
         shlex.quote(str(a)) for a in (root, op, match, machine(), base, "force" if force else "-")
     )
-    run = subprocess.run([*ssh, host, command], input=REMOTE.read_text(), capture_output=True, text=True, timeout=timeout)
+    run = subprocess.run([*ssh, host, command], input=REMOTE.read_text(encoding="utf-8"), capture_output=True, text=True, timeout=timeout, encoding="utf-8", errors="replace")
     if run.returncode:
         raise RuntimeError(run.stderr.strip() or f"ssh: {run.returncode}")
     return json.loads(run.stdout)
@@ -238,7 +238,7 @@ def push(match: Path, force: bool = False, changed_only: bool = False) -> bool:
 
 def sending(match: Path, force: bool) -> None:
     """`push` once this machine's other processes leave the match alone."""
-    config = json.loads((match / matches.PUBLISH).read_text())
+    config = json.loads((match / matches.PUBLISH).read_text(encoding="utf-8"))
     base = local(match)["version"]
     found = remote(config, "begin", match.name, base, force)
     if found.get("busy"):
@@ -320,7 +320,7 @@ def newest_copy(config: dict) -> str | None:
 
 def ssh_run(config: dict, command: str, timeout: float = 60) -> str:
     host, ssh = backup.connection(config)
-    run = subprocess.run([*ssh, host, command], capture_output=True, text=True, timeout=timeout)
+    run = subprocess.run([*ssh, host, command], capture_output=True, text=True, timeout=timeout, encoding="utf-8", errors="replace")
     if run.returncode:
         raise RuntimeError(run.stderr.strip() or f"ssh: {run.returncode}")
     return run.stdout
@@ -365,9 +365,9 @@ def join_lines(config: dict, source: str, target: Path) -> None:
             if not mine.exists():
                 files.write_bytes(mine, theirs.read_bytes())
                 continue
-            have = mine.read_text().splitlines()
+            have = mine.read_text(encoding="utf-8").splitlines()
             known = set(have)
-            extra = [line for line in theirs.read_text().splitlines() if line not in known]
+            extra = [line for line in theirs.read_text(encoding="utf-8").splitlines() if line not in known]
             if extra:
                 files.write_text(mine, "\n".join(have + extra) + "\n")
 
@@ -390,8 +390,8 @@ def verify(outputs: Path, told: bool = False) -> list[str]:
     for match in found:
         stages.start(f"check:{match.name}")
         run = subprocess.run(
-            ["rsync", "-rcn", "--delete", "--itemize-changes", *[f"--exclude={p}" for p in backup.SKIP], "-e", " ".join(ssh), f"{match}/", f"{host}:{backup.ROOT}/{last[match.name]}/{match.name}/"],
-            capture_output=True, text=True, timeout=backup.TIMEOUT_S,
+            transfer.local(["rsync", "-rcn", "--delete", "--itemize-changes", *[f"--exclude={p}" for p in backup.SKIP], "-e", shlex.join(ssh), f"{match}/", f"{host}:{backup.ROOT}/{last[match.name]}/{match.name}/"]),
+            capture_output=True, text=True, timeout=backup.TIMEOUT_S, encoding="utf-8", errors="replace",
         )  # fmt: skip
         differ = [line for line in run.stdout.splitlines() if line.strip()]
         if run.returncode:
@@ -470,7 +470,7 @@ def listing(outputs: Path) -> dict[str, dict]:
 def rsync(config: dict, source: str, target: Path, *options: str, times: bool = True) -> None:
     """The server's `source` brought into `target`, its files' times kept unless not `times` (they are then now)."""
     host, ssh = backup.connection(config)
-    run = subprocess.run(["rsync", "-rt" if times else "-r", *options, "-e", " ".join(ssh), f"{host}:{source}", str(target)], capture_output=True, text=True, timeout=backup.TIMEOUT_S)
+    run = subprocess.run(transfer.local(["rsync", "-rt" if times else "-r", *options, "-e", shlex.join(ssh), f"{host}:{source}", str(target)]), capture_output=True, text=True, timeout=backup.TIMEOUT_S, encoding="utf-8", errors="replace")
     if run.returncode:
         raise RuntimeError(run.stderr.strip() or f"rsync: {run.returncode}")
 
@@ -506,7 +506,7 @@ def relative_copies(match: Path) -> None:
     path = match / matches.PUBLISH
     if not path.exists():
         return
-    config = json.loads(path.read_text())
+    config = json.loads(path.read_text(encoding="utf-8"))
     moved = False
     for key in ("light", "av1", "small"):
         value = config.get(key)
@@ -541,11 +541,11 @@ def merge_roster(folder: Path, config: dict, pulled: str | None = None, claims: 
     path = folder.parent / "roster.json"
     host, ssh = backup.connection(config)
     command = f"f=$(ls -1d {backup.ROOT}/*/roster.json 2>/dev/null | grep -E '/[0-9]{{4}}-[0-9]{{2}}-[0-9]{{2}}(T[0-9]{{2}})?/roster.json$' | tail -1); if [ -n \"$f\" ]; then cat \"$f\"; else echo '{{\"players\": []}}'; fi"
-    run = subprocess.run([*ssh, host, command], capture_output=True, text=True, timeout=60)
+    run = subprocess.run([*ssh, host, command], capture_output=True, text=True, timeout=60, encoding="utf-8", errors="replace")
     if run.returncode:
         raise RuntimeError(run.stderr.strip() or f"ssh: {run.returncode}")
     theirs = json.loads(run.stdout)["players"]
-    mine = json.loads(path.read_text())["players"] if path.exists() else []
+    mine = json.loads(path.read_text(encoding="utf-8"))["players"] if path.exists() else []
     claims = claims if claims is not None else remote(config, "list")["matches"]
 
     def ours(match: str) -> bool:

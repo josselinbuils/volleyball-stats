@@ -46,7 +46,7 @@ def on_court(players: Path, step: int) -> Counter:
 
 def read_rallies(path: Path) -> list[tuple[int, int, int]]:
     """Each rally's start and end frames and set, from a `rallies.csv`."""
-    with path.open() as f:
+    with path.open(encoding="utf-8") as f:
         return [(int(r["start_frame"]), int(r["end_frame"]), int(r["set"] or 0)) for r in csv.DictReader(f)]
 
 
@@ -74,7 +74,7 @@ def read_detected(match: Path, fps: float) -> list[tuple[int, int]]:
     """A match's detected timeouts, detected now when an older run left none."""
     path = match / DETECTED
     if path.exists():
-        with path.open() as f:
+        with path.open(encoding="utf-8") as f:
             return [(int(r["start_frame"]), int(r["end_frame"])) for r in csv.DictReader(f)]
     if (match / "rallies.csv").exists() and (match / "players.csv").exists():
         return detect(match, fps)

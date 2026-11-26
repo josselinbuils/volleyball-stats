@@ -49,11 +49,11 @@ def on_battery() -> bool | None:
         if sys.platform == "win32":
             return windows_battery()
         if sys.platform == "darwin":
-            return "'Battery Power'" in subprocess.run(["pmset", "-g", "batt"], capture_output=True, text=True, timeout=10).stdout
+            return "'Battery Power'" in subprocess.run(["pmset", "-g", "batt"], capture_output=True, text=True, timeout=10, encoding="utf-8", errors="replace").stdout
         supplies = list(Path("/sys/class/power_supply").glob("*"))
         if not supplies:
             return None
-        return any((s / "type").read_text().strip() == "Battery" and (s / "status").read_text().strip() == "Discharging" for s in supplies if (s / "status").exists())
+        return any((s / "type").read_text(encoding="utf-8").strip() == "Battery" and (s / "status").read_text(encoding="utf-8").strip() == "Discharging" for s in supplies if (s / "status").exists())
     except (OSError, subprocess.SubprocessError):
         return None
 
@@ -67,11 +67,11 @@ def laptop() -> bool | None:
         if in_wsl():
             if not shutil.which("powershell.exe"):
                 return None
-            said = subprocess.run(["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", HAS_BATTERY], capture_output=True, text=True, timeout=30).stdout.strip()
+            said = subprocess.run(["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", HAS_BATTERY], capture_output=True, text=True, timeout=30, encoding="utf-8", errors="replace").stdout.strip()
             return {"True": True, "False": False}.get(said)
         if sys.platform == "darwin":
-            return "InternalBattery" in subprocess.run(["pmset", "-g", "batt"], capture_output=True, text=True, timeout=10).stdout
-        return any((s / "type").read_text().strip() == "Battery" for s in Path("/sys/class/power_supply").glob("*"))
+            return "InternalBattery" in subprocess.run(["pmset", "-g", "batt"], capture_output=True, text=True, timeout=10, encoding="utf-8", errors="replace").stdout
+        return any((s / "type").read_text(encoding="utf-8").strip() == "Battery" for s in Path("/sys/class/power_supply").glob("*"))
     except (OSError, subprocess.SubprocessError):
         return None
 
@@ -128,7 +128,7 @@ def held(battery: Callable[[bool], None] = lambda _: None, check_s: float = CHEC
         ctypes.windll.kernel32.SetThreadExecutionState(ES_CONTINUOUS | ES_SYSTEM_REQUIRED)
     if command:
         try:
-            process = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE if in_wsl() else subprocess.DEVNULL, stderr=subprocess.DEVNULL, text=True)
+            process = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE if in_wsl() else subprocess.DEVNULL, stderr=subprocess.DEVNULL, text=True, encoding="utf-8", errors="replace")
         except OSError:
             process = None
     if process and in_wsl():

@@ -7,7 +7,6 @@ Without the weights the stage does not run and the pipeline is as before. The we
 (`outputs/learned/play/`, shared between the machines by the backup) and are trained on the reviewed matches (`play_training`).
 """
 
-import subprocess
 from collections import deque
 from collections.abc import Callable, Iterable, Iterator
 from pathlib import Path
@@ -169,7 +168,7 @@ def frames(video: Path) -> Iterator[np.ndarray]:
         scale = f"scale={WIDTH}:{FULL_HEIGHT}"
     command = ["ffmpeg", "-v", "error", *hardware, "-i", str(video), "-an", "-sn", "-dn", "-vf", f"fps={FPS},{scale},format=rgb24", "-f", "rawvideo", "-"]
     size = FULL_HEIGHT * WIDTH * 3
-    with subprocess.Popen(command, stdout=subprocess.PIPE) as process:
+    with decode.popen(command) as process:
         while (buf := process.stdout.read(size)) and len(buf) == size:
             yield np.frombuffer(buf, np.uint8).reshape(FULL_HEIGHT, WIDTH, 3)[:HEIGHT]
 

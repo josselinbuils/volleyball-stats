@@ -25,18 +25,18 @@ def run(video: Path, names: list[str]) -> None:
     out = OUT / video.stem
     out.mkdir(parents=True, exist_ok=True)
     timings_path = out / "timings.json"
-    timings = json.loads(timings_path.read_text()) if timings_path.exists() else {}
+    timings = json.loads(timings_path.read_text(encoding="utf-8")) if timings_path.exists() else {}
     for name in names:
         start = time.perf_counter()
         frames = CANDIDATES[name](video)
         elapsed = time.perf_counter() - start
         device = getattr(CANDIDATES[name], "device", DEVICE)
         timings[name] = {"seconds": round(elapsed, 1), "fps": round(len(frames) / elapsed, 1), "device": device}
-        with open(out / f"{name}.jsonl", "w") as f:
+        with open(out / f"{name}.jsonl", "w", encoding="utf-8") as f:
             for blobs in frames:
                 f.write(json.dumps([[round(v, 4) for v in b] for b in blobs]) + "\n")
         print(f"{name}: {timings[name]}")
-        timings_path.write_text(json.dumps(timings, indent=2))
+        timings_path.write_text(json.dumps(timings, indent=2), encoding="utf-8")
 
 
 def select_top(frames, threshold, width):
@@ -60,7 +60,7 @@ POLICIES = {"top": select_top, "online": select_online}
 
 
 def load_ground_truth(path: Path) -> dict[int, tuple[float, float] | None]:
-    with open(path) as f:
+    with open(path, encoding="utf-8") as f:
         return {int(r["frame"]): (float(r["x"]), float(r["y"])) if r["visible"] == "1" else None for r in csv.DictReader(f)}
 
 
@@ -84,7 +84,7 @@ def score(video: Path, truth_path: Path, tolerance: float) -> None:
     width = cv2.VideoCapture(str(video)).get(cv2.CAP_PROP_FRAME_WIDTH)
     out = OUT / video.stem
     truth = load_ground_truth(truth_path)
-    timings = json.loads((out / "timings.json").read_text())
+    timings = json.loads((out / "timings.json").read_text(encoding="utf-8"))
     visible = sum(b is not None for b in truth.values())
     print(f"{video.stem}: {len(truth)} annotated frames, {visible} with the ball, tolerance {tolerance:g} px\n")
     print(f"{'candidate':18} {'policy':7} {'F1':>6} {'thr':>5} {'P':>6} {'R':>6} {'fps':>7}")
@@ -93,7 +93,7 @@ def score(video: Path, truth_path: Path, tolerance: float) -> None:
         path = out / f"{name}.jsonl"
         if not path.exists():
             continue
-        frames = [json.loads(line) for line in path.open()]
+        frames = [json.loads(line) for line in path.open(encoding="utf-8")]
         for policy, select in POLICIES.items():
             thr, (p, r, best) = max(
                 ((t, f1(select(frames, t, width), truth, tolerance)) for t in THRESHOLDS), key=lambda x: x[1][2]
@@ -140,7 +140,7 @@ def compare(pairs: list[tuple[Path, Path]], tolerance: float) -> None:
         paths = [OUT / stem / f"{name}.jsonl" for stem, _, _ in clips]
         if not all(p.exists() for p in paths):
             continue
-        frames = [[json.loads(line) for line in p.open()] for p in paths]
+        frames = [[json.loads(line) for line in p.open(encoding="utf-8")] for p in paths]
 
         def mean_f1(t):
             return sum(f1(select_top(fr, t, w), truth, tolerance)[2] for fr, (_, w, truth) in zip(frames, clips)) / len(clips)
@@ -177,7 +177,7 @@ def hit_rate(pairs: list[tuple[Path, Path]], tolerance: float) -> None:
             continue
         rates = []
         for path, (_, width, balls) in zip(paths, clips):
-            picks = select_top([json.loads(line) for line in path.open()], 0.0, width)
+            picks = select_top([json.loads(line) for line in path.open(encoding="utf-8")], 0.0, width)
             rates.append(sum(picks[f] is not None and math.dist(picks[f][:2], b) <= tolerance for f, b in balls.items()) / len(balls))
         rows.append((sum(rates) / len(rates), name, rates))
     for mean, name, rates in sorted(rows, reverse=True):

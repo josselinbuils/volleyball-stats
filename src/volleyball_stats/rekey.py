@@ -19,7 +19,7 @@ Window = tuple[int, int]
 
 
 def read_windows(path: Path) -> list[Window]:
-    with open(path) as f:
+    with open(path, encoding="utf-8") as f:
         return [(int(r["start_frame"]), int(r["end_frame"])) for r in csv.DictReader(f)]
 
 
@@ -155,7 +155,7 @@ def moved_comments(comments: dict[int, str], before: list[Window], after: list[W
 
 def read_page(path: Path) -> dict:
     """A page's data.js MATCH."""
-    text = path.read_text().strip()
+    text = path.read_text(encoding="utf-8").strip()
     return json.loads(text[text.index("=") + 1 :].rstrip(";"))
 
 

@@ -101,7 +101,7 @@ class TestSave:
 
         save(path, log)
 
-        assert json.loads(path.read_text()) == {"same": [], "different": [], "not_player": [{"track": 1}], "cut": [], "team": [], "touch": [], "rally": [], "receiver": [], "partner": [], "action": [], "winner": [], "added": [], "end": [], "join": [], "split": [], "pinned": [], "locked": [], "redo": [], "referee": [], "wrong": [], "log": log}
+        assert json.loads(path.read_text(encoding="utf-8")) == {"same": [], "different": [], "not_player": [{"track": 1}], "cut": [], "team": [], "touch": [], "rally": [], "receiver": [], "partner": [], "action": [], "winner": [], "added": [], "end": [], "join": [], "split": [], "pinned": [], "locked": [], "redo": [], "referee": [], "wrong": [], "log": log}
 
 
 class TestNames:
@@ -185,9 +185,9 @@ class TestRoster:
         """A match folder whose `players` {(team, identity): name} each hold their own track."""
         folder = outputs / name
         folder.mkdir(parents=True)
-        (folder / "teams.json").write_text(json.dumps({"teams": [{"name": t} for t in teams]}))
+        (folder / "teams.json").write_text(json.dumps({"teams": [{"name": t} for t in teams]}), encoding="utf-8")
         rows = [f"{k},0,10,{team},{number}" for k, (team, number) in enumerate(players)]
-        (folder / "identities.csv").write_text("\n".join(["track,start_frame,end_frame,team,identity", *rows]) + "\n")
+        (folder / "identities.csv").write_text("\n".join(["track,start_frame,end_frame,team,identity", *rows]) + "\n", encoding="utf-8")
         write_names(folder, [{"ref": {"track": k, "frame": 5}, "name": n, "jersey": None} for k, n in enumerate(players.values())])
         return folder
 
@@ -516,12 +516,12 @@ class TestMeeting:
 
 class TestSetTeam:
     def test_names_and_colours_a_team_its_jersey_colour_back_without_one(self, tmp_path):
-        (tmp_path / "teams.json").write_text(json.dumps({"teams": [{"name": "A", "colour": None, "jersey": "#151515"}, {"name": "B", "colour": None, "jersey": "#151515"}]}))
+        (tmp_path / "teams.json").write_text(json.dumps({"teams": [{"name": "A", "colour": None, "jersey": "#151515"}, {"name": "B", "colour": None, "jersey": "#151515"}]}), encoding="utf-8")
 
         set_team(tmp_path, 2, " Les Rouges ", "rouge")
-        assert json.loads((tmp_path / "teams.json").read_text())["teams"][1] == {"name": "Les Rouges", "colour": "#d22630", "jersey": "#151515"}
+        assert json.loads((tmp_path / "teams.json").read_text(encoding="utf-8"))["teams"][1] == {"name": "Les Rouges", "colour": "#d22630", "jersey": "#151515"}
         set_team(tmp_path, 2, "", None)
-        assert json.loads((tmp_path / "teams.json").read_text())["teams"][1] == {"name": None, "colour": None, "jersey": "#151515"}
+        assert json.loads((tmp_path / "teams.json").read_text(encoding="utf-8"))["teams"][1] == {"name": None, "colour": None, "jersey": "#151515"}
         with pytest.raises(ValueError):
             set_team(tmp_path, 1, "A", "not a colour")
 
@@ -533,12 +533,12 @@ class TestSetPhoto:
 
         set_photo(tmp_path, table, 2, 5, 12, [1, 2, 3, 4])
 
-        assert json.loads((tmp_path / "photo_choices.json").read_text()) == {"Maeva": {"frame": 12, "box": [1, 2, 3, 4]}}
+        assert json.loads((tmp_path / "photo_choices.json").read_text(encoding="utf-8")) == {"Maeva": {"frame": 12, "box": [1, 2, 3, 4]}}
 
     def test_keeps_it_on_the_card_of_a_player_without_a_name(self, tmp_path):
         set_photo(tmp_path, [(1, 0, 30, 2, 5)], 2, 5, 12, [1, 2, 3, 4])
 
-        assert json.loads((tmp_path / "photo_choices.json").read_text()) == {"2:5": {"frame": 12, "box": [1, 2, 3, 4]}}
+        assert json.loads((tmp_path / "photo_choices.json").read_text(encoding="utf-8")) == {"2:5": {"frame": 12, "box": [1, 2, 3, 4]}}
 
 
 class TestSetStart:
@@ -553,27 +553,27 @@ class TestSetStart:
         match = self.match(tmp_path)
 
         set_start(match, 50.0, add=70.0)
-        assert json.loads((match / "teams.json").read_text())["sets"] == ["0:00", "0:40", "2:30"]
+        assert json.loads((match / "teams.json").read_text(encoding="utf-8"))["sets"] == ["0:00", "0:40", "2:30"]
         set_start(match, 50.0, add=330.0)
-        assert json.loads((match / "teams.json").read_text())["sets"] == ["0:00", "0:40", "2:30", "6:00"]
+        assert json.loads((match / "teams.json").read_text(encoding="utf-8"))["sets"] == ["0:00", "0:40", "2:30", "6:00"]
 
     def test_one_start_a_break_and_the_scores_follow_their_sets(self, tmp_path):
         match = self.match(tmp_path)
 
         # 2:30 and the break's middle, 3:10, start the same rallies: the new one takes its place.
         set_start(match, 50.0, add=200.0)
-        saved = json.loads((match / "teams.json").read_text())
+        saved = json.loads((match / "teams.json").read_text(encoding="utf-8"))
         assert saved["sets"] == ["0:00", "3:10"] and saved["scores"] == [None, None]
         set_start(match, 50.0, add=70.0)
         set_start(match, 50.0, remove="3:10")
-        saved = json.loads((match / "teams.json").read_text())
+        saved = json.loads((match / "teams.json").read_text(encoding="utf-8"))
         assert saved["sets"] == ["0:00", "0:40"] and saved["scores"] == [None, None]
 
     def test_keeps_a_kept_sets_score(self, tmp_path):
         match = self.match(tmp_path)
 
         set_start(match, 50.0, add=70.0)
-        assert json.loads((match / "teams.json").read_text())["scores"] == [None, None, [25, 20]]
+        assert json.loads((match / "teams.json").read_text(encoding="utf-8"))["scores"] == [None, None, [25, 20]]
 
     def test_refuses_the_first_set_and_a_moment_after_the_last_rally(self, tmp_path):
         match = self.match(tmp_path)

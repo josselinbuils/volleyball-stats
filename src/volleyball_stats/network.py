@@ -30,7 +30,7 @@ def always(outputs: Path) -> bool:
     """Whether the review listens on the local network from every start."""
     path = outputs / FILE
     try:
-        return bool(json.loads(path.read_text()).get("always")) if path.exists() else False
+        return bool(json.loads(path.read_text(encoding="utf-8")).get("always")) if path.exists() else False
     except (OSError, ValueError):
         return False
 
@@ -97,7 +97,7 @@ def wsl_mode() -> str | None:
     if not in_wsl():
         return None
     try:
-        return subprocess.run(["wslinfo", "--networking-mode"], capture_output=True, text=True, timeout=5).stdout.strip() or None
+        return subprocess.run(["wslinfo", "--networking-mode"], capture_output=True, text=True, timeout=5, encoding="utf-8", errors="replace").stdout.strip() or None
     except (OSError, subprocess.SubprocessError):
         return None
 
@@ -105,8 +105,8 @@ def wsl_mode() -> str | None:
 def wsl_config() -> Path | None:
     """The Windows user's .wslconfig, through WSL's view of the C: drive; None when it cannot be found."""
     try:
-        profile = subprocess.run(["cmd.exe", "/c", "echo %USERPROFILE%"], capture_output=True, text=True, timeout=10, cwd="/mnt/c").stdout.strip()
-        found = subprocess.run(["wslpath", "-u", profile], capture_output=True, text=True, timeout=5).stdout.strip()
+        profile = subprocess.run(["cmd.exe", "/c", "echo %USERPROFILE%"], capture_output=True, text=True, timeout=10, cwd="/mnt/c", encoding="utf-8", errors="replace").stdout.strip()
+        found = subprocess.run(["wslpath", "-u", profile], capture_output=True, text=True, timeout=5, encoding="utf-8", errors="replace").stdout.strip()
     except (OSError, subprocess.SubprocessError):
         return None
     return Path(found) / ".wslconfig" if found else None
@@ -145,7 +145,7 @@ def configure_windows(port: int) -> None:
     path = wsl_config()
     if path is None:
         raise OSError("no .wslconfig found")
-    text = path.read_text() if path.exists() else ""
+    text = path.read_text(encoding="utf-8") if path.exists() else ""
     if text:
         files.write_text(path.with_name(".wslconfig.bak"), text)
     files.write_text(path, mirrored_config(text))
@@ -156,7 +156,7 @@ def configure_windows(port: int) -> None:
     )
     run = subprocess.run(
         ["powershell.exe", "-NoProfile", "-Command", f"Start-Process powershell -Verb RunAs -Wait -WindowStyle Hidden -ArgumentList '-NoProfile','-Command',\"{rule}\""],
-        capture_output=True, text=True, timeout=300,
+        capture_output=True, text=True, timeout=300, encoding="utf-8", errors="replace",
     )
     if run.returncode:
         raise OSError(run.stderr.strip() or "the firewall rule was not added")

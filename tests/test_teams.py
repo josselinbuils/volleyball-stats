@@ -271,7 +271,7 @@ class TestSettle:
             "sets": ["0:00", "2:35"],
             "scores": [None, None],
         }
-        assert json.loads((tmp_path / "teams.json").read_text()) == data
+        assert json.loads((tmp_path / "teams.json").read_text(encoding="utf-8")) == data
 
     def test_asks_on_a_terminal_the_first_time_and_reuses_the_file_after(self, tmp_path, monkeypatch):
         answers = iter(["Bègles", "", "", "sparkly", "rouge", "", "", "", "", ""])
@@ -302,7 +302,7 @@ class TestSettle:
     def test_takes_the_flags_over_the_file_and_keeps_edited_sets(self, tmp_path):
         path = tmp_path / "teams.json"
         settle(path, self.found, self.windows, 10.0, None, False, self.recorded, title="Finale")
-        path.write_text(path.read_text().replace('"2:35"', '"3:00"'))
+        path.write_text(path.read_text(encoding="utf-8").replace('"2:35"', '"3:00"'), encoding="utf-8")
 
         kept = settle(path, self.found, self.windows, 10.0, None, True, "2030-01-01")
         data = settle(path, self.found, self.windows, 10.0, "Home:blanc,Away", True, self.recorded, "2016-12-21", "")
@@ -314,7 +314,7 @@ class TestSettle:
 
     def test_gives_a_file_from_before_the_date_the_recording_date_without_asking(self, tmp_path, monkeypatch):
         path = tmp_path / "teams.json"
-        path.write_text(json.dumps({"teams": [{"name": "Home", "colour": None}, {"name": None, "colour": None}], "sets": ["0:00"]}))
+        path.write_text(json.dumps({"teams": [{"name": "Home", "colour": None}, {"name": None, "colour": None}], "sets": ["0:00"]}), encoding="utf-8")
         monkeypatch.setattr("builtins.input", lambda prompt: pytest.fail(prompt))
 
         data = settle(path, self.found, self.windows, 10.0, None, True, self.recorded)

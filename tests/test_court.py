@@ -77,7 +77,7 @@ class TestLens:
 
         assert np.allclose(loaded.to_court(loaded.to_image(court)), court, atol=1e-6)
         assert loaded.lens == lens and loaded.error == 0.5
-        assert json.loads((tmp_path / "calibration.json").read_text())["lens"]["model"] == "fisheye"
+        assert json.loads((tmp_path / "calibration.json").read_text(encoding="utf-8"))["lens"]["model"] == "fisheye"
 
     def test_keeps_how_a_library_court_was_made(self, tmp_path):
         calibration = Calibration(np.eye(3), clicks={"center_near": [1.0, 2.0]}, points={"corner_left_far": [3.0, 4.0]}, colour=[1.0, 0.0, 0.0], template=[[5.0, 6.0]], size=[1280, 720])

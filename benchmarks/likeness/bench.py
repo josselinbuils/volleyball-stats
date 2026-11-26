@@ -22,7 +22,7 @@ MADE_UP = {"hair": "dark", "style": "short", "skin": 2}
 
 
 def main() -> None:
-    truth = {k: v for k, v in json.loads(TRUTH.read_text()).items() if k != "_"}
+    truth = {k: v for k, v in json.loads(TRUTH.read_text(encoding="utf-8")).items() if k != "_"}
     found: dict[str, dict] = {}
     for match, labels in truth.items():
         site = Path("outputs/matches") / match / "review"

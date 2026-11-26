@@ -12,7 +12,6 @@ encoded by ffmpeg, on an NVIDIA GPU when it can.
 
 import argparse
 import csv
-import subprocess
 from collections.abc import Iterable
 from pathlib import Path
 
@@ -79,7 +78,7 @@ def encoder(video: Path) -> list[str]:
 
 def write(match: Path, video: Path, teams: set[int], out: Path) -> None:
     """`video` with the players of `teams` pixelated into `out` (H.264, the original's sound)."""
-    with open(match / "tracks.csv") as f:
+    with open(match / "tracks.csv", encoding="utf-8") as f:
         blurred = {int(r["track"]) for r in csv.DictReader(f) if int(r["team"]) in teams}
     t = tables.players(match / "players.csv")
     table = np.column_stack([t[k] for k in ("frame", "track", "x1", "y1", "x2", "y2")]).astype(float).reshape(-1, 6)
@@ -96,7 +95,7 @@ def write(match: Path, video: Path, teams: set[int], out: Path) -> None:
         "-i", str(video), "-map", "0:v", "-map", "1:a?", *encoder(video), "-pix_fmt", "yuv420p", "-c:a", "copy", "-movflags", "+faststart", str(out),
     ]
     out.parent.mkdir(parents=True, exist_ok=True)
-    process = subprocess.Popen(command, stdin=subprocess.PIPE)
+    process = decode.popen(command, "stdin")
     try:
         for index, image in enumerate(decode.frames(video, width)):
             process.stdin.write(pixelate(image, hidden.get(index, [])).tobytes())

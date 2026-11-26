@@ -197,7 +197,7 @@ class TestVoiceIndex:
         folder = tmp_path / "voice"
         folder.mkdir()
         made = {clip_name(spelled(line["text"], {})): 1.0 for line in script(data)}
-        (folder / "durations.json").write_text(json.dumps(made))
+        (folder / "durations.json").write_text(json.dumps(made), encoding="utf-8")
         full = voice_index(tmp_path, data)
         data["rallies"][1]["score"] = [1, 1]
         data["rallies"][1]["winner"] = 2

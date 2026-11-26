@@ -33,7 +33,7 @@ def imported(entry: str) -> list[Path]:
         if name in found or name in OUTSIDE or not path.exists():
             continue
         found.add(name)
-        for node in ast.parse(path.read_text()).body:
+        for node in ast.parse(path.read_text(encoding="utf-8")).body:
             if isinstance(node, ast.ImportFrom) and node.module == "volleyball_stats":
                 todo += [a.name for a in node.names]
             elif isinstance(node, ast.ImportFrom) and node.module and node.module.startswith("volleyball_stats."):
@@ -43,7 +43,7 @@ def imported(entry: str) -> list[Path]:
 
 def code(path: Path) -> str:
     """A module's code without its comments, layout or docstrings: changing those changes no result."""
-    tree = ast.parse(path.read_text())
+    tree = ast.parse(path.read_text(encoding="utf-8"))
     for node in ast.walk(tree):
         body = getattr(node, "body", None)
         if isinstance(body, list) and body and isinstance(body[0], ast.Expr) and isinstance(body[0].value, ast.Constant) and isinstance(body[0].value.value, str):
@@ -63,7 +63,7 @@ def fingerprint(match: Path | None = None) -> str:
         digest = hashlib.sha256()
         for path, *_ in key:
             digest.update(path.name.encode())
-            digest.update((code(path) if path.suffix == ".py" else path.read_text()).encode())
+            digest.update((code(path) if path.suffix == ".py" else path.read_text(encoding="utf-8")).encode())
         _seen[key] = digest.hexdigest()[:16]
     play = playing.stamp(playing.weights(match)) if match else None
     typed = gesture.stamp(gesture.weights(match)) if match else None
@@ -74,7 +74,7 @@ def made_by(match: Path) -> str | None:
     """The fingerprint of the code that made `match`'s analysis, None when unknown (made before 14 Nov 2026)."""
     path = match / FILE
     try:
-        return json.loads(path.read_text())["code"]
+        return json.loads(path.read_text(encoding="utf-8"))["code"]
     except (OSError, ValueError, KeyError):
         return None
 

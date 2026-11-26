@@ -49,11 +49,11 @@ def breakdown(name: str, run: str) -> list[str]:
     truth = load_truth(name, folder)
     for r in truth["rallies"]:
         r["touches"] = in_rally(r)
-    found = json.loads((BASE / name / "runs" / run / "corrections.json").read_text())
-    summary = json.loads((BASE / name / "runs" / run / "summary.json").read_text())
+    found = json.loads((BASE / name / "runs" / run / "corrections.json").read_text(encoding="utf-8"))
+    summary = json.loads((BASE / name / "runs" / run / "summary.json").read_text(encoding="utf-8"))
     fps = truth["fps"]
     lead, within = round(actions.LEAD_S * fps), round(learn.SAME_S * fps)
-    given = json.loads((ROOT / "outputs/matches" / name / "source.json").read_text())
+    given = json.loads((ROOT / "outputs/matches" / name / "source.json").read_text(encoding="utf-8"))
     windows = [(int(r["start_frame"]), int(r["end_frame"])) for r in learn.read_rows(folder / "rallies.csv")]
     rows = attribution.read_players(folder / "players.csv")
     seen, raw, typed_frames, far = raw_contacts(folder, ROOT / given["court"], fps, windows, rows, lead)
@@ -164,7 +164,7 @@ def main() -> None:
     for name in names:
         text += breakdown(name, args.run)
     path = BASE / "breakdown.md"
-    path.write_text("\n".join(text) + "\n")
+    path.write_text("\n".join(text) + "\n", encoding="utf-8")
     print("\n".join(text))
     print(path)
 

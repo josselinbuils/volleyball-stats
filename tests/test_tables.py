@@ -17,7 +17,7 @@ def same(a: dict, b: dict) -> bool:
 class TestRead:
     def test_gives_the_columns_as_parsed_then_the_same_from_its_cache(self, tmp_path):
         path = tmp_path / "players.csv"
-        path.write_text(HEADER + ROWS)
+        path.write_text(HEADER + ROWS, encoding="utf-8")
 
         parsed = tables.players(path)
 
@@ -29,31 +29,31 @@ class TestRead:
 
     def test_reads_again_a_players_csv_made_again(self, tmp_path):
         path = tmp_path / "players.csv"
-        path.write_text(HEADER + ROWS)
+        path.write_text(HEADER + ROWS, encoding="utf-8")
         tables.players(path)
 
-        path.write_text(HEADER + ROWS.replace("2767.3", "1.5"))
+        path.write_text(HEADER + ROWS.replace("2767.3", "1.5"), encoding="utf-8")
         os.utime(path, ns=(path.stat().st_atime_ns, path.stat().st_mtime_ns + 1))
 
         assert tables.players(path)["x1"].tolist() == [1.5, -3.1]
 
     def test_keeps_as_they_are_the_numbers_with_more_decimals(self, tmp_path):
         path = tmp_path / "players.csv"
-        path.write_text(HEADER + ROWS.replace("2767.3", "2767.3456"))
+        path.write_text(HEADER + ROWS.replace("2767.3", "2767.3456"), encoding="utf-8")
 
         assert tables.players(path)["x1"].tolist() == [2767.3456, -3.1]
         assert tables.players(path)["x1"].tolist() == [2767.3456, -3.1]
 
     def test_an_empty_one_has_empty_columns(self, tmp_path):
         path = tmp_path / "players.csv"
-        path.write_text(HEADER)
+        path.write_text(HEADER, encoding="utf-8")
 
         assert all(len(v) == 0 for v in tables.players(path).values())
         assert all(len(v) == 0 for v in tables.players(path).values())
 
     def test_refuses_other_columns(self, tmp_path):
         path = tmp_path / "players.csv"
-        path.write_text("frame,track\n0,1\n")
+        path.write_text("frame,track\n0,1\n", encoding="utf-8")
 
         with pytest.raises(ValueError):
             tables.players(path)
@@ -62,7 +62,7 @@ class TestRead:
 class TestBall:
     def test_gives_the_places_seen_as_parsed_then_the_same_from_its_cache(self, tmp_path):
         path = tmp_path / "ball.csv"
-        path.write_text("frame,visible,x,y\n0,0,,\n1,1,1485,602\n2,1,3.5,-0.0\n")
+        path.write_text("frame,visible,x,y\n0,0,,\n1,1,1485,602\n2,1,3.5,-0.0\n", encoding="utf-8")
 
         parsed = tables.ball(path)
 
@@ -75,7 +75,7 @@ class TestBall:
 
     def test_refuses_other_columns(self, tmp_path):
         path = tmp_path / "ball.csv"
-        path.write_text("frame,x\n0,1\n")
+        path.write_text("frame,x\n0,1\n", encoding="utf-8")
 
         with pytest.raises(ValueError):
             tables.ball(path)

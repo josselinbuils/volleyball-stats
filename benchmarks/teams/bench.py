@@ -44,7 +44,7 @@ def players(clip: str) -> list[Row]:
 
 
 def truth(clip: str) -> list[dict]:
-    with open(f"benchmarks/teams/ground_truth/{clip}.csv") as f:
+    with open(f"benchmarks/teams/ground_truth/{clip}.csv", encoding="utf-8") as f:
         return list(csv.DictReader(f))
 
 
@@ -100,7 +100,7 @@ def track_truth(clip: str, rows: list[Row]) -> dict[int, str]:
     for r in rows:
         by_frame.setdefault(r.frame, []).append(r)
     votes: dict[int, Counter] = {}
-    with open(path) as f:
+    with open(path, encoding="utf-8") as f:
         labels = list(csv.DictReader(f))
     for frame in sorted({int(l["frame"]) for l in labels}):
         here = [l for l in labels if int(l["frame"]) == frame]
@@ -226,7 +226,7 @@ def mixed(clips: list[str], seeds: int = 5, same: bool = False) -> None:
             print(f"{clip}: no {path}")
             continue
         segments: dict[int, list[tuple[int, str, str]]] = {}
-        with open(path) as f:
+        with open(path, encoding="utf-8") as f:
             for r in csv.DictReader(f):
                 segments.setdefault(int(r["track"]), []).append((int(r["end_frame"]) - int(r["start_frame"]), r["team"], r["identity"]))
         owner = {t: max(v)[1:] for t, v in segments.items()}

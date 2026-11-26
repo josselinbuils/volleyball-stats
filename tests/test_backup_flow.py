@@ -1,23 +1,30 @@
 import json
 import os
+import shutil
 import stat
 import threading
 import time
 
 import pytest
 
-from volleyball_stats import backup, server, sync, sync_remote
+from volleyball_stats import backup, server, sync, sync_remote, transfer
 
 
+# The server's commands are a shell's.
+@pytest.mark.skipif(not shutil.which("sh"), reason="no sh")
 class TestBackupFlow:
-    """Two machines and the server as folders here, ssh run locally: the real rsync, snapshot and claims."""
+    """Two machines and the server as folders here, ssh run locally: rsync (or its stand-in), snapshot and claims."""
 
-    @pytest.fixture
-    def place(self, tmp_path, monkeypatch):
+    @pytest.fixture(params=["rsync", "stand-in"])
+    def place(self, request, tmp_path, monkeypatch):
+        if request.param == "rsync" and not shutil.which("rsync"):
+            pytest.skip("no rsync")
+        if request.param == "stand-in":
+            monkeypatch.setattr(transfer, "command", lambda: [transfer.sys.executable, transfer.__file__])
         root = tmp_path / "server"
         fake = tmp_path / "ssh"
         # The host, then the command: run here.
-        fake.write_text('#!/bin/sh\nshift\nexec sh -c "$*"\n')
+        fake.write_text('#!/bin/sh\nshift\nexec sh -c "$*"\n', encoding="utf-8")
         fake.chmod(fake.stat().st_mode | stat.S_IEXEC)
         monkeypatch.setattr(backup, "ROOT", str(root))
         monkeypatch.setattr(backup, "connection", lambda config: ("here", [str(fake)]))
@@ -36,23 +43,23 @@ class TestBackupFlow:
         (outputs / "matches").mkdir(parents=True)
         files = {"server.json": {"upload": "here:/site/", "key": "k"}}
         for path, content in files.items():
-            (outputs / path).write_text(json.dumps(content))
+            (outputs / path).write_text(json.dumps(content), encoding="utf-8")
         return outputs
 
     @staticmethod
     def match(outputs, name="m"):
         match = outputs / "matches" / name
         match.mkdir()
-        (match / "source.json").write_text("{}")
-        (match / "publish.json").write_text(json.dumps({"upload": "here:/site/", "key": "k"}))
-        (match / "answers.json").write_text("first")
-        (match / "embeddings.npz").write_text("big and unchanged")
+        (match / "source.json").write_text("{}", encoding="utf-8")
+        (match / "publish.json").write_text(json.dumps({"upload": "here:/site/", "key": "k"}), encoding="utf-8")
+        (match / "answers.json").write_text("first", encoding="utf-8")
+        (match / "embeddings.npz").write_text("big and unchanged", encoding="utf-8")
         return match
 
     @staticmethod
     def write(path, text, at):
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(text)
+        path.write_text(text, encoding="utf-8")
         os.utime(path, (at, at))
 
     def test_two_machines_share_and_keep_every_copy(self, place):
@@ -63,22 +70,22 @@ class TestBackupFlow:
         self.write(a / "feedback" / "feedback.log", "a1\n", 1000)
         self.write(a / "club" / "club.json", "old club", 1000)
         sync.push(m)
-        assert (root / "2026-01-01T10" / "m" / "answers.json").read_text() == "first"
+        assert (root / "2026-01-01T10" / "m" / "answers.json").read_text(encoding="utf-8") == "first"
         assert backup.state(a)["at"] and not backup.state(a)["error"]
 
         # The next hour: the copy starts as the one before, only the change goes up.
         hour["id"] = "2026-01-01T11"
-        (m / "answers.json").write_text("second")
+        (m / "answers.json").write_text("second", encoding="utf-8")
         sync.push(m)
         before, after = root / "2026-01-01T10" / "m", root / "2026-01-01T11" / "m"
-        assert (before / "answers.json").read_text() == "first" and (after / "answers.json").read_text() == "second"
+        assert (before / "answers.json").read_text(encoding="utf-8") == "first" and (after / "answers.json").read_text(encoding="utf-8") == "second"
         assert (before / "embeddings.npz").stat().st_ino == (after / "embeddings.npz").stat().st_ino
 
         # The other machine pulls it, adds its own court and report, edits the club: nothing of a's is lost.
         machine["name"] = "pc"
         b = self.machine(tmp_path, "b")
         sync.pull("m", b)
-        assert (b / "matches" / "m" / "answers.json").read_text() == "second" and (b / "courts" / "gym.json").exists()
+        assert (b / "matches" / "m" / "answers.json").read_text(encoding="utf-8") == "second" and (b / "courts" / "gym.json").exists()
         self.write(b / "courts" / "hall.json", "b's court", 2000)
         self.write(b / "feedback" / "feedback.log", "a1\nb1\n", 2000)
         self.write(b / "club" / "club.json", "new club", 2000)
@@ -87,8 +94,8 @@ class TestBackupFlow:
         self.write(a / "feedback" / "feedback.log", "a1\na2\n", 1500)
         sync.keep_shared(a, sync.server(a))
         assert sorted(p.name for p in (a / "courts").iterdir()) == ["gym.json", "hall.json"]
-        assert (a / "club" / "club.json").read_text() == "new club"
-        assert (a / "feedback" / "feedback.log").read_text().splitlines() == ["a1", "a2", "b1"]
+        assert (a / "club" / "club.json").read_text(encoding="utf-8") == "new club"
+        assert (a / "feedback" / "feedback.log").read_text(encoding="utf-8").splitlines() == ["a1", "a2", "b1"]
         assert sorted(p.name for p in (root / "2026-01-01T11" / "courts").iterdir()) == ["gym.json", "hall.json"]
 
         # A shared change alone moves no match's version.
@@ -97,12 +104,12 @@ class TestBackupFlow:
 
         # The copies match this machine's; a damaged one is found.
         assert sync.verify(a) == []
-        (root / "2026-01-01T11" / "m" / "answers.json").write_text("damaged")
+        (root / "2026-01-01T11" / "m" / "answers.json").write_text("damaged", encoding="utf-8")
         assert sync.verify(a) and backup.state(a)["problems"]
 
         # A match brought back from an older copy: this machine's set aside, the match left to send.
         server.restore(a, "2026-01-01T10", "m")
-        assert (m / "answers.json").read_text() == "first" and sync.changed(m)
+        assert (m / "answers.json").read_text(encoding="utf-8") == "first" and sync.changed(m)
         assert any(p.name.startswith("backup-sync-") for p in m.iterdir())
         with pytest.raises(PermissionError):
             server.restore(a, "2026-01-01T10", "m", open_match="m")
@@ -112,7 +119,7 @@ class TestBackupFlow:
         hour["id"] = "2026-01-01T12"
         sync.push(m)
         assert sorted(p.name for p in root.iterdir() if backup.COPY.fullmatch(p.name)) == ["2026-01-01T12"]
-        assert (root / "2026-01-01T12" / "m" / "answers.json").read_text() == "first"
+        assert (root / "2026-01-01T12" / "m" / "answers.json").read_text(encoding="utf-8") == "first"
 
     def test_two_processes_of_one_machine_send_a_match_one_after_the_other(self, place, monkeypatch):
         # 21 Nov: the review's timer and the app's "Sauvegarder maintenant" sent the same matches together.
@@ -144,10 +151,10 @@ class TestBackupFlow:
         machine["name"] = "pc"
         b = self.machine(tmp_path, "b")
         sync.pull("m", b)
-        (b / "matches" / "m" / "answers.json").write_text("pc's")
+        (b / "matches" / "m" / "answers.json").write_text("pc's", encoding="utf-8")
         sync.push(b / "matches" / "m")
         machine["name"] = "mac"
-        (m / "answers.json").write_text("mac's")
+        (m / "answers.json").write_text("mac's", encoding="utf-8")
         assert sync.push_all(a) == []
         monkeypatch.setattr(app, "MATCHES", a / "matches")
         log = capsys.readouterr().out
@@ -166,10 +173,10 @@ class TestBackupFlow:
         b = self.machine(tmp_path, "b")
         assert sync.due(b) == [("m", False), ("n", False)]
         assert sync.pull_all(b) == [] and sync.due(b) == []
-        (b / "matches" / "m" / "answers.json").write_text("pc's")
+        (b / "matches" / "m" / "answers.json").write_text("pc's", encoding="utf-8")
         sync.push(b / "matches" / "m")
         machine["name"] = "mac"
-        (a / "matches" / "m" / "answers.json").write_text("mac's")
+        (a / "matches" / "m" / "answers.json").write_text("mac's", encoding="utf-8")
         assert sync.due(a) == [("m", True)]
         started = []
         monkeypatch.setattr(app, "MATCHES", a / "matches")
@@ -178,7 +185,7 @@ class TestBackupFlow:
         monkeypatch.setattr(jobs, "start", lambda *args, **kwargs: started.append(args[1]))
         assert app.start_pull(False) == {"due": 1, "changed": [{"name": "m", "title": None, "teams": None}]} and not started
         assert app.start_pull(True)["due"] == 1 and started == ["pull"]
-        assert sync.pull_all(a) == [] and (a / "matches" / "m" / "answers.json").read_text() == "pc's"
+        assert sync.pull_all(a) == [] and (a / "matches" / "m" / "answers.json").read_text(encoding="utf-8") == "pc's"
         assert any(p.name.startswith("backup-sync-") for p in (a / "matches" / "m").iterdir())
 
     def test_the_site_tab_saved_unchanged_leaves_the_matches_unchanged(self, place):

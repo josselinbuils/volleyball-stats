@@ -9,7 +9,7 @@ you get a match page where every number replays its moments.
 
 [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue)](LICENSE)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-blue)](pyproject.toml)
-[![Platform: Linux, WSL2, macOS](https://img.shields.io/badge/platform-Linux%20%7C%20WSL2%20%7C%20macOS-lightgrey)](docs/setup.md)
+[![Platform: Linux, Windows, macOS](https://img.shields.io/badge/platform-Linux%20%7C%20Windows%20%7C%20macOS-lightgrey)](docs/setup.md)
 
 <br>
 
@@ -94,7 +94,7 @@ own. Next time, open that shortcut; closing its window closes the app.
 
 On Windows, the app runs in Ubuntu (WSL2): in PowerShell as administrator, run `wsl --install -d Ubuntu-24.04`,
 restart, open "Ubuntu" from the Start menu, choose a user name and password, then paste the line above there. See
-[Setup](docs/setup.md) for the NVIDIA driver.
+[Setup](docs/setup.md) for the NVIDIA driver, or to run it on Windows itself, without Ubuntu.
 
 The app's "Diagnostics" button checks the graphics card, the memory, the disk space and the tools, and says what to
 fix; it also shows the app's log.

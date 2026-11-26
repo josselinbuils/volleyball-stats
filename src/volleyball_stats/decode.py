@@ -26,6 +26,8 @@ from pathlib import Path
 import cv2
 import numpy as np
 
+from volleyball_stats import files
+
 # YOLO reads the players at 1280 px wide; WASB's 512x288 is resized from these frames.
 WIDTH = 1280
 # ffmpeg restarts at a timestamp over gaps of more frames than this, rather than decoding through them.
@@ -106,7 +108,7 @@ def hardware(video: Path) -> tuple[str, ...]:
 
 def probe(video: Path, *args: str, check: bool = False) -> str:
     """What ffprobe says of `video` asked `args`, stripped; with `check`, CalledProcessError when it cannot read it."""
-    return subprocess.run(["ffprobe", "-v", "error", *args, str(video)], capture_output=True, text=True, check=check).stdout.strip()
+    return subprocess.run(["ffprobe", "-v", "error", *args, str(video)], capture_output=True, text=True, check=check, encoding="utf-8", errors="replace").stdout.strip()
 
 
 def fps(video: Path) -> float:
@@ -137,8 +139,33 @@ def timestamps(video: Path) -> np.ndarray:
     # Under another name first: several readers may list them at once.
     partial = kept.with_name(f"{kept.stem}_{os.getpid()}_{threading.get_ident()}.npy")
     np.save(partial, found)
-    partial.replace(kept)
+    files.replace(partial, kept)
     return found
+
+
+# Windows' pipe of Popen (a few KB) moves 4K frames five times slower than WSL2's, one of a MB faster than it.
+PIPE_BYTES = 1 << 20
+
+
+def popen(command: list[str], side: str = "stdout", **options) -> subprocess.Popen:
+    """`subprocess.Popen(command)` its `side` ("stdout" or "stdin") a pipe of frames; on Windows one of PIPE_BYTES."""
+    if os.name != "nt":
+        return subprocess.Popen(command, **{side: subprocess.PIPE}, **options)
+    import _winapi
+    import msvcrt
+
+    read, write = _winapi.CreatePipe(None, PIPE_BYTES)
+    ours, theirs = (read, write) if side == "stdout" else (write, read)
+    mine, child = msvcrt.open_osfhandle(ours, os.O_RDONLY if side == "stdout" else 0), msvcrt.open_osfhandle(theirs, 0)
+    try:
+        process = subprocess.Popen(command, **{side: child}, **options)
+    except BaseException:
+        os.close(mine)
+        raise
+    finally:
+        os.close(child)
+    setattr(process, side, open(mine, "rb" if side == "stdout" else "wb"))
+    return process
 
 
 def piped(video: Path, width: int, height: int, fresh: bool = True, first: int = 0, count: int | None = None, kept: list[int] | None = None, gpu: bool = True) -> Iterator[np.ndarray]:
@@ -156,7 +183,7 @@ def piped(video: Path, width: int, height: int, fresh: bool = True, first: int =
         "-vf", f"{select}{'format=yuv420p,' if flags else ''}scale={width}:{height}:in_color_matrix=bt601:flags=bicubic", "-fps_mode", "passthrough", "-f", "rawvideo", "-pix_fmt", "bgr24", "-",
     ]
     with tempfile.TemporaryFile() as errors:
-        process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=errors)
+        process = popen(command, stderr=errors)
         frame = np.empty((height, width, 3), np.uint8)
         sent = 0
         try:

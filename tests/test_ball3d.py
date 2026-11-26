@@ -112,7 +112,7 @@ class TestTouchPlaces:
 
     def test_leaves_out_faults_and_lone_touches(self, tmp_path):
         ball = tmp_path / "ball.csv"
-        ball.write_text("frame,visible,x,y\n")
+        ball.write_text("frame,visible,x,y\n", encoding="utf-8")
         lens = {"K": [[1500, 0, 1920], [0, 1500, 1080], [0, 0, 1]], "D": [0, 0, 0, 0], "model": "fisheye"}
         H = camera()[:, [0, 1, 3]]
         c = Calibration(H / H[2, 2], lens=lens)
@@ -188,7 +188,7 @@ class TestMeasures:
         lens = {"K": [[1500, 0, 1920], [0, 1500, 1080], [0, 0, 1]], "D": [0, 0, 0, 0], "model": "fisheye"}
         seen = self.flight()
         rows = [f"{f},1,{x:.2f},{y:.2f}" for f, (x, y) in zip(seen, distort(np.array(list(seen.values())), lens))]
-        ball.write_text("frame,visible,x,y\n" + "\n".join(rows) + "\n")
+        ball.write_text("frame,visible,x,y\n" + "\n".join(rows) + "\n", encoding="utf-8")
         contacts = [{**self.SERVE, "rally": 0}, {**self.RECEPTION, "rally": 0}]
         measure(fit_touches(contacts, ball, Calibration(H / H[2, 2], lens=lens), self.FPS), self.FPS)
         assert abs(contacts[0]["speed"] - 45) <= 1

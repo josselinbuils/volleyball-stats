@@ -19,7 +19,7 @@ FPS = 29.97
 
 def third_touches(path: Path) -> list[tuple[int, str]]:
     rallies: dict[str, list[dict]] = defaultdict(list)
-    with open(path) as f:
+    with open(path, encoding="utf-8") as f:
         for row in csv.DictReader(f):
             rallies[row["rally"]].append(row)
     found = []

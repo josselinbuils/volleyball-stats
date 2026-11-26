@@ -36,7 +36,7 @@ spec.loader.exec_module(bench)
 
 
 def read(path: Path) -> list[dict]:
-    with open(path) as f:
+    with open(path, encoding="utf-8") as f:
         return list(csv.DictReader(f))
 
 

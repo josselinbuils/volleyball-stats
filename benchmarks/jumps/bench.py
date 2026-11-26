@@ -30,12 +30,12 @@ def number(text: str) -> int | None:
 def load(labels: Path = LABELS) -> dict[str, dict]:
     """Each match's labels, tracks, poses and calibration."""
     by_match: dict[str, list[dict]] = defaultdict(list)
-    for row in csv.DictReader(open(labels)):
+    for row in csv.DictReader(open(labels, encoding="utf-8")):
         by_match[row["match"]].append(row)
     out = {}
     for name, labels in by_match.items():
         match = MATCHES / name
-        source = json.loads((match / "source.json").read_text())
+        source = json.loads((match / "source.json").read_text(encoding="utf-8"))
         attacks = [(int(r["frame"]), int(r["track"])) for r in labels]
         tracks = jumps.read_tracks(match / "players.csv", {t for _, t in attacks})
         poses = jumps.pose_all(Path(source["video"]), attacks, {(f, t): tracks[t] for f, t in attacks}, FPS, match / "jumps.json")

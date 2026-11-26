@@ -21,12 +21,12 @@ TEXTBOOK = [(6.5, -3.5, 5), (8.0, 0.0, 6), (6.5, 3.5, 1)]
 
 def built(match: Path) -> tuple[dict, dict]:
     """The review page's data.js and its positions' samples, as `write_site` had them."""
-    text = (match / "review" / "data.js").read_text()
+    text = (match / "review" / "data.js").read_text(encoding="utf-8")
     data = json.loads(text[text.index("=") + 1 :].strip().rstrip(";"))
     p = data["positions"]
     samples: list[list[float]] = []
     for n in range(p["files"]):
-        text = (match / "review" / "positions" / f"{n}.js").read_text()
+        text = (match / "review" / "positions" / f"{n}.js").read_text(encoding="utf-8")
         count, columns = json.loads(text[text.index(",") + 1 : text.rindex(")")])
         flats: list[list[float]] = [[] for _ in range(count)]
         for person, runs, xs, ys in columns:

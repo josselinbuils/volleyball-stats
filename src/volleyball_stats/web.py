@@ -91,7 +91,7 @@ SPONSOR_PX = 160
 
 
 def read_csv(path: Path) -> list[dict[str, str]]:
-    with open(path) as f:
+    with open(path, encoding="utf-8") as f:
         return list(csv.DictReader(f))
 
 
@@ -469,7 +469,7 @@ def club_page(name: str, site: Path) -> dict | None:
     if not path.exists():
         themes = sorted(p.parent.name for p in club_settings.THEMES.glob(f"*/{club_settings.THEME_FILE}"))
         raise SystemExit(f"Unknown theme {name!r}: available themes are {', '.join([CLUB, *themes, 'none'])}")
-    data = json.loads(path.read_text())
+    data = json.loads(path.read_text(encoding="utf-8"))
     data["favicon"] = icon.favicon(icon.colours({"logo": data.get("logo"), "accent": data.get("light", {}).get("accent")}, path.parent))
     if data.get("logo"):
         (site / "club").mkdir(parents=True, exist_ok=True)
@@ -1239,7 +1239,7 @@ def copy_films(films: Path | None, site: Path, names: set[str] = frozenset()) ->
     by name their addresses. A film of a name no longer on the page (a renamed player's) is deleted from `films` too."""
     target = site / "films"
     manifest = films / "manifest.json" if films else None
-    made = json.loads(manifest.read_text()) if manifest and manifest.exists() else {}
+    made = json.loads(manifest.read_text(encoding="utf-8")) if manifest and manifest.exists() else {}
     kept = {name: e for name, e in made.items() if name in names or name == FILM_HIGHLIGHTS}
     if kept != made:
         for e in made.values():
@@ -1364,7 +1364,7 @@ def write_site(data: dict, players: dict | None, video: Path | None, site: Path,
     if positions:
         (site / "positions").mkdir()
         for n, content in enumerate(positions):
-            (site / "positions" / f"{n}.js").write_text(content)
+            (site / "positions" / f"{n}.js").write_text(content, encoding="utf-8")
         data["positions"] = {"step": players["step"], "every": round(POSITIONS_S * data["fps"] / players["step"]), "files": len(positions), "cm": POSITION_CM}
         data["contacts"] = with_landings(data.get("contacts", []), players, data["fps"])
         if data.get("teams"):
@@ -1381,12 +1381,12 @@ def write_site(data: dict, players: dict | None, video: Path | None, site: Path,
         (site / old).unlink(missing_ok=True)
     video_js = video and ball and f"window.MATCH_VIDEO = {json.dumps(ball, separators=(',', ':'))};\n"
     if video_js:
-        (site / VIDEO_JS).write_text(video_js)
+        (site / VIDEO_JS).write_text(video_js, encoding="utf-8")
     (site / "ball3d.js").unlink(missing_ok=True)
     places = data.pop("ball3d", None)
     places_js = f"window.MATCH_BALL3D = {json.dumps(places, separators=(',', ':'))};\n" if places else ""
     if places_js:
-        (site / "ball3d.js").write_text(places_js)
+        (site / "ball3d.js").write_text(places_js, encoding="utf-8")
     if places_js:
         data["ball3d"] = True
     shutil.rmtree(site / "voice", ignore_errors=True)
@@ -1396,7 +1396,7 @@ def write_site(data: dict, players: dict | None, video: Path | None, site: Path,
         for clip in {row[1] for row in voice["lines"]} | set(voice["replay"].values()):
             shutil.copy2(voice["folder"] / clip, site / "voice" / clip)
         voice_js = f"window.MATCH_VOICE = {json.dumps({'lines': voice['lines'], 'replay': voice['replay']}, separators=(',', ':'), ensure_ascii=False)};\n"
-        (site / "voice" / "index.js").write_text(voice_js)
+        (site / "voice" / "index.js").write_text(voice_js, encoding="utf-8")
         data["voice"] = True
     # Real footage: only beside a page that has the video, which the hosted one keeps behind its password.
     shown_films = copy_films(films if video else None, site, {q["name"] for q in data.get("people", {}).values() if q.get("name")})
@@ -1409,7 +1409,11 @@ def write_site(data: dict, players: dict | None, video: Path | None, site: Path,
         if copy:
             linked(kept, site / kept.name)
         else:
-            (site / kept.name).symlink_to(kept.resolve())
+            try:
+                (site / kept.name).symlink_to(kept.resolve())
+            except OSError:
+                # Windows lets only an administrator or its developer mode make one.
+                linked(kept, site / kept.name)
 
 
 def version(site: Path, data: dict) -> str:
@@ -1419,7 +1423,7 @@ def version(site: Path, data: dict) -> str:
     loaded = [site / "positions" / f"{n}.js" for n in range((data.get("positions") or {}).get("files", 0))]
     loaded += [site / VIDEO_JS, site / "ball3d.js", site / "voice" / "index.js"]
     # As read back from data.js: renew_code finds the same.
-    text = json.dumps(json.loads(json.dumps(data)), sort_keys=True) + "".join(p.read_text() for p in loaded if p.exists())
+    text = json.dumps(json.loads(json.dumps(data)), sort_keys=True) + "".join(p.read_text(encoding="utf-8") for p in loaded if p.exists())
     return hashlib.sha256(text.encode()).hexdigest()[:10]
 
 
@@ -1428,10 +1432,10 @@ def write_data(site: Path, data: dict) -> None:
     data["v"] = version(site, data)
     text = f"window.MATCH = {json.dumps(data, separators=(',', ':'), ensure_ascii=False)};\n"
     # Its date kept when it stays: an upload skips it.
-    if not (site / "data.js").exists() or (site / "data.js").read_text() != text:
-        (site / "data.js").write_text(text)
+    if not (site / "data.js").exists() or (site / "data.js").read_text(encoding="utf-8") != text:
+        (site / "data.js").write_text(text, encoding="utf-8")
     index = site / "index.html"
-    index.write_text((TEMPLATE / "index.html").read_text().replace('src="data.js"', f'src="data.js?v={data["v"]}"'))
+    index.write_text((TEMPLATE / "index.html").read_text(encoding="utf-8").replace('src="data.js"', f'src="data.js?v={data["v"]}"'), encoding="utf-8")
 
 
 def page_data(site: Path) -> dict | None:
@@ -1439,7 +1443,7 @@ def page_data(site: Path) -> dict | None:
     path = site / "data.js"
     if not path.exists():
         return None
-    text = path.read_text()
+    text = path.read_text(encoding="utf-8")
     return json.loads(text[text.index("=") + 1 :].strip().rstrip(";"))
 
 
@@ -1607,7 +1611,7 @@ def review_inputs(match: Path, video: Path, court: Path, theme: str) -> str:
 def review_kept(match: Path, video: Path, court: Path, theme: str) -> bool:
     """Whether the review's page of `match` was built from the files it would be built from now (`review_inputs`)."""
     built = match / "review" / BUILT_FROM
-    return (match / "review" / "data.js").exists() and built.exists() and built.read_text() == review_inputs(match, video, court, theme)
+    return (match / "review" / "data.js").exists() and built.exists() and built.read_text(encoding="utf-8") == review_inputs(match, video, court, theme)
 
 
 def review_page(match: Path, video: Path, court: Path, theme: str = CLUB, pictures: bool = True, share: jobs.Share = jobs.quiet) -> dict:
@@ -1638,9 +1642,9 @@ def patch_people(site: Path, people: dict) -> None:
     text = json.dumps(data, separators=(",", ":"), ensure_ascii=False)
     new = hashlib.sha256(text.encode()).hexdigest()[:10]
     data["v"] = new
-    (site / "data.js").write_text(f"window.MATCH = {json.dumps(data, separators=(',', ':'), ensure_ascii=False)};\n")
+    (site / "data.js").write_text(f"window.MATCH = {json.dumps(data, separators=(',', ':'), ensure_ascii=False)};\n", encoding="utf-8")
     index = site / "index.html"
-    index.write_text(index.read_text().replace(f"data.js?v={old}", f"data.js?v={new}"))
+    index.write_text(index.read_text(encoding="utf-8").replace(f"data.js?v={old}", f"data.js?v={new}"), encoding="utf-8")
 
 
 def publish(match: Path, video: Path, court: Path, theme: str, given: dict, site: Path | None = None, share: jobs.Share = jobs.quiet, made: tuple[dict, dict | None] | None = None) -> tuple[dict, dict]:
@@ -1649,7 +1653,7 @@ def publish(match: Path, video: Path, court: Path, theme: str, given: dict, site
     pictures unless asked, from the data `made` when given (`build`); returns data.js's match and the choices. ValueError for a choice needing a
     club without one, or a court calibrated on another video."""
     path = match / "page.json"
-    saved = json.loads(path.read_text()) if path.exists() and site is None else {}
+    saved = json.loads(path.read_text(encoding="utf-8")) if path.exists() and site is None else {}
     settings = {"footage": "none", "club": None, "pictures": False, "copy": False, "light": None, "av1": None, "small": None, "link": None, "feedback": None, **saved}
     settings.update({k: v for k, v in given.items() if v is not None})
     if settings["club"] is None and (settings["footage"] == "blur-opponents" or settings["pictures"]):
@@ -1657,7 +1661,7 @@ def publish(match: Path, video: Path, court: Path, theme: str, given: dict, site
     if settings["club"] == "both" and settings["footage"] == "blur-opponents":
         raise ValueError("--club both leaves no opponents to blur")
     if site is None:
-        path.write_text(json.dumps(settings, indent=2) + "\n")
+        path.write_text(json.dumps(settings, indent=2) + "\n", encoding="utf-8")
     pictured = ({1, 2} if settings["club"] == "both" else {settings["club"]}) if settings["pictures"] else set()
     light = Path(settings["light"]) if settings["light"] else None
     av1 = Path(settings["av1"]) if settings["av1"] else None

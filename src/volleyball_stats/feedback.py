@@ -10,7 +10,7 @@ import json
 import subprocess
 import threading
 import time
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 from volleyball_stats import files
 from volleyball_stats.matches import PUBLISH, ssh_options
@@ -36,7 +36,7 @@ def read(path: Path) -> list[dict]:
     its one-tap flag (same `id`) merged into it; lines that are no report (sent by hand, cut) skipped."""
     out: list[dict] = []
     by_id: dict[str, int] = {}
-    for line in path.read_text().splitlines():
+    for line in path.read_text(encoding="utf-8").splitlines():
         try:
             entry = json.loads(line)
             report = json.loads(entry["report"])
@@ -59,7 +59,7 @@ def fetch(folder: Path, upload: str, key: str) -> Path | None:
     copied to `folder`/feedback-DATE.log, which the review reads, then emptied online; None when it
     holds nothing. The copy is kept before the log is emptied."""
     host, site = upload.split(":", 1)
-    online = str(Path(site.rstrip("/")).parent / "feedback" / "feedback.log")
+    online = str(PurePosixPath(site.rstrip("/")).parent / "feedback" / "feedback.log")
     ssh = ssh_options(key)
     folder.mkdir(parents=True, exist_ok=True)
     target = folder / f"feedback-{time.strftime('%Y%m%d-%H%M%S')}.log"
@@ -74,7 +74,7 @@ def fetch(folder: Path, upload: str, key: str) -> Path | None:
 def news(outputs: Path) -> dict:
     """NEW's content: {"at": time of the last fetch, "matches": {match: [report ids]}}."""
     try:
-        found = json.loads((outputs / "feedback" / NEW).read_text())
+        found = json.loads((outputs / "feedback" / NEW).read_text(encoding="utf-8"))
         return found if isinstance(found, dict) else {}
     except (OSError, ValueError):
         return {}
@@ -99,7 +99,7 @@ def fetch_all(outputs: Path) -> dict[str, int]:
             names.update({alias: match.name for alias in files.aliases(match)})
             names[match.name] = match.name
             try:
-                config = json.loads((match / PUBLISH).read_text())
+                config = json.loads((match / PUBLISH).read_text(encoding="utf-8"))
             except (OSError, ValueError):
                 continue
             if isinstance(config, dict) and config.get("upload") and config.get("key"):

@@ -61,8 +61,8 @@ class TestReports:
         line = lambda r: json.dumps({"received": "t", "report": json.dumps(r)})  # noqa: E731
         mine, other = {"match": "m", "time": 41.0, "kind": "player", "comment": ""}, {"match": "x", "time": 5.0, "kind": "other"}
         (tmp_path / "feedback").mkdir()
-        (tmp_path / "feedback" / "feedback.log").write_text(line(mine) + "\n" + line(other) + "\n")
-        (tmp_path / "feedback" / "feedback-copy.log").write_text(line(mine) + "\n")
+        (tmp_path / "feedback" / "feedback.log").write_text(line(mine) + "\n" + line(other) + "\n", encoding="utf-8")
+        (tmp_path / "feedback" / "feedback-copy.log").write_text(line(mine) + "\n", encoding="utf-8")
         (tmp_path / "matches" / "m").mkdir(parents=True)
 
         found = reports(tmp_path / "matches" / "m")
@@ -413,7 +413,7 @@ class TestComments:
         path = tmp_path / "identity_answers.json"
         write_comments(tmp_path, {100: "à revoir"})
         save(path, [])
-        assert "à revoir" not in path.read_text()
+        assert "à revoir" not in path.read_text(encoding="utf-8")
 
 
 class TestWaiting:
@@ -427,27 +427,27 @@ class TestWaiting:
 
     def test_tells_whether_the_answers_jersey_numbers_or_names_differ_from_what_the_identities_were_computed_from(self, tmp_path):
         log = [{**self.entry, "applied": True}]
-        (tmp_path / APPLIED).write_text(json.dumps(state(tmp_path, log)))
+        (tmp_path / APPLIED).write_text(json.dumps(state(tmp_path, log)), encoding="utf-8")
 
         assert waiting(tmp_path, log) == {"pending": 0, "changed": False, "namesPending": False, "toApply": [], "corrections": {}, "films": {"players": {"total": 0, "stale": []}, "highlights": {"total": 0, "stale": []}}, "checked": [], "restorable": {}, "due": None}
         assert waiting(tmp_path, [])["changed"]
         write_names(tmp_path, [{"ref": {"track": 1, "frame": 5}, "name": "Julie", "jersey": None}])
         assert waiting(tmp_path, log) == {"pending": 0, "changed": False, "namesPending": True, "toApply": [["names", None]], "corrections": {}, "films": {"players": {"total": 0, "stale": []}, "highlights": {"total": 0, "stale": []}}, "checked": [], "restorable": {}, "due": None}
-        (tmp_path / "jerseys.csv").write_text("frame,track,number\n")
+        (tmp_path / "jerseys.csv").write_text("frame,track,number\n", encoding="utf-8")
         assert waiting(tmp_path, log)["changed"]
 
     def test_a_timeout_given_since_the_last_apply_is_a_change(self, tmp_path):
-        (tmp_path / APPLIED).write_text(json.dumps({k: v for k, v in state(tmp_path, []).items() if k != "timeouts"}))
+        (tmp_path / APPLIED).write_text(json.dumps({k: v for k, v in state(tmp_path, []).items() if k != "timeouts"}), encoding="utf-8")
         assert not waiting(tmp_path, [])["changed"]
 
-        (tmp_path / "timeouts.json").write_text(json.dumps([{"start": 100, "end": 2000, "team": 1}]))
+        (tmp_path / "timeouts.json").write_text(json.dumps([{"start": 100, "end": 2000, "team": 1}]), encoding="utf-8")
         assert waiting(tmp_path, [])["changed"]
 
     def test_learned_while_the_last_learning_run_saw_the_answers_as_they_stand(self, tmp_path):
         log = [{**self.entry, "applied": False}]
         assert not learned(tmp_path, log)
 
-        (tmp_path / "learn.json").write_text(json.dumps([{"time": "2026-11-09 10:00", "answers": answers_stamp(log)}]))
+        (tmp_path / "learn.json").write_text(json.dumps([{"time": "2026-11-09 10:00", "answers": answers_stamp(log)}]), encoding="utf-8")
         assert learned(tmp_path, log)
         # Applying changes nothing the run saw; another answer does.
         assert learned(tmp_path, [{**self.entry, "applied": True}])
@@ -462,7 +462,7 @@ class TestWaiting:
     def test_a_kind_of_answer_added_since_the_last_apply_with_nothing_said_is_no_change(self, tmp_path):
         applied = state(tmp_path, [])
         del applied["answers"]["partner"]
-        (tmp_path / APPLIED).write_text(json.dumps(applied))
+        (tmp_path / APPLIED).write_text(json.dumps(applied), encoding="utf-8")
 
         assert not waiting(tmp_path, [])["changed"]
         assert waiting(tmp_path, [{"id": "touch:5", "partner": [{"frame": 5}], "applied": True}])["changed"]
@@ -482,7 +482,7 @@ class TestWaiting:
 
     def test_rallies_checked_locked_at_the_start_are_no_change(self, tmp_path):
         log = [{**self.entry, "applied": True}]
-        (tmp_path / APPLIED).write_text(json.dumps(state(tmp_path, log)))
+        (tmp_path / APPLIED).write_text(json.dumps(state(tmp_path, log)), encoding="utf-8")
         lock = [{"id": "lock", "choice": "locked", "action": [{"frame": 5, "type": "serve", "result": "play"}], "locked": [{"start": 1, "touches": []}], "applied": True}]
 
         assert waiting(tmp_path, lock + log)["changed"]
@@ -491,9 +491,9 @@ class TestWaiting:
         applied_too(tmp_path / "none", lock)
 
     def test_jersey_numbers_copied_through_the_server_to_the_second_are_no_change(self, tmp_path):
-        (tmp_path / "jerseys.csv").write_text("frame,track,number\n")
+        (tmp_path / "jerseys.csv").write_text("frame,track,number\n", encoding="utf-8")
         os.utime(tmp_path / "jerseys.csv", (1793733733.7316, 1793733733.7316))
-        (tmp_path / APPLIED).write_text(json.dumps({**state(tmp_path, []), "jerseys": 1793733733.7316}))
+        (tmp_path / APPLIED).write_text(json.dumps({**state(tmp_path, []), "jerseys": 1793733733.7316}), encoding="utf-8")
         os.utime(tmp_path / "jerseys.csv", (1793733733.0, 1793733733.0))
 
         assert not waiting(tmp_path, [])["changed"]
@@ -526,7 +526,7 @@ class TestPooledRuns:
     @staticmethod
     def write(outputs, name, runs):
         (outputs / name).mkdir()
-        (outputs / name / "learn.json").write_text(json.dumps([{"time": t, "commit": c, "scores": s} for t, c, s in runs]))
+        (outputs / name / "learn.json").write_text(json.dumps([{"time": t, "commit": c, "scores": s} for t, c, s in runs]), encoding="utf-8")
 
     def test_each_run_counts_every_match_at_its_latest_run_then(self, tmp_path):
         self.write(tmp_path, "a", [("2026-11-01 10:00", "a1", {"who": [1, 2]}), ("2026-11-03 10:00", "a2", {"who": [8, 10]})])
@@ -542,7 +542,7 @@ class TestPooledRuns:
 
     def test_only_the_matches_with_runs_count(self, tmp_path):
         (tmp_path / "no-run").mkdir()
-        (tmp_path / "file.txt").write_text("")
+        (tmp_path / "file.txt").write_text("", encoding="utf-8")
 
         assert pooled_runs(tmp_path) == []
 
@@ -551,7 +551,7 @@ class TestLastComparison:
     @staticmethod
     def runs(folder, runs):
         folder.mkdir(parents=True, exist_ok=True)
-        (folder / "learn.json").write_text(json.dumps(runs))
+        (folder / "learn.json").write_text(json.dumps(runs), encoding="utf-8")
 
     def test_the_last_run_against_what_it_replaced(self, tmp_path):
         self.runs(tmp_path / "a", [{"time": "1", "scores": {"who": [1, 2]}}, {"time": "2", "scores": {"who": [2, 2]}, "before": {"who": [1, 2]}}])
@@ -579,7 +579,7 @@ class TestDue:
         (tmp_path / "report.md").touch()
         assert due(tmp_path, [self.entry]) == "answers"
 
-        (tmp_path / "learn.json").write_text(json.dumps([{"time": "1", "answers": answers_stamp([self.entry])}]))
+        (tmp_path / "learn.json").write_text(json.dumps([{"time": "1", "answers": answers_stamp([self.entry])}]), encoding="utf-8")
         assert due(tmp_path, [self.entry]) == "rules"
         analysis.write(tmp_path, analysis.fingerprint(tmp_path))
         assert due(tmp_path, [self.entry]) is None
@@ -598,8 +598,8 @@ class TestPageStamp:
     def page(tmp_path, data: dict):
         site = tmp_path / "review"
         site.mkdir(exist_ok=True)
-        (site / "data.js").write_text(f"window.MATCH = {json.dumps(data)};\n")
-        (site / "index.html").write_text(f'<script src="data.js?v={data["v"]}"></script>')
+        (site / "data.js").write_text(f"window.MATCH = {json.dumps(data)};\n", encoding="utf-8")
+        (site / "index.html").write_text(f'<script src="data.js?v={data["v"]}"></script>', encoding="utf-8")
         return site
 
     def test_the_same_page_patched_with_the_same_pictures_is_no_change(self, tmp_path):
@@ -630,14 +630,14 @@ def test_a_look_set_by_name_shows_on_the_players_other_matches_whose_hosted_copy
     def page(match, people):
         site = match / "review"
         site.mkdir(parents=True)
-        (site / "data.js").write_text(f"window.MATCH = {json.dumps({'people': people, 'v': 'a'})};\n")
-        (site / "index.html").write_text('<script src="data.js?v=a"></script>')
+        (site / "data.js").write_text(f"window.MATCH = {json.dumps({'people': people, 'v': 'a'})};\n", encoding="utf-8")
+        (site / "index.html").write_text('<script src="data.js?v=a"></script>', encoding="utf-8")
 
     a, b, c = (tmp_path / n for n in "abc")
     page(a, {"1": {"team": 1, "number": 3, "name": "Landy", "look": {"hair": "dark"}}})
     page(b, {"4": {"team": 2, "number": 7, "name": "Landy", "look": {"hair": "dark", "skin": 2}}, "5": {"team": 2, "number": 8, "name": "Zoé"}})
     page(c, {"1": {"team": 1, "number": 3, "name": "Zoé"}})
-    (b / likeness.CHOICES).write_text(json.dumps({"Landy": {"hair": "dark"}}))
+    (b / likeness.CHOICES).write_text(json.dumps({"Landy": {"hair": "dark"}}), encoding="utf-8")
     hosted.record_hosted(b)
     hosted.record_hosted(c)
     monkeypatch.setattr(identity, "read_names", lambda match: {})
@@ -665,8 +665,8 @@ def test_a_change_made_while_an_upload_runs_leaves_its_page_late(tmp_path):
 
     site = tmp_path / "review"
     site.mkdir()
-    (site / "data.js").write_text(f"window.MATCH = {json.dumps({'people': {'1': {'team': 1, 'number': 3}}, 'v': 'a'})};\n")
-    (site / "index.html").write_text('<script src="data.js?v=a"></script>')
+    (site / "data.js").write_text(f"window.MATCH = {json.dumps({'people': {'1': {'team': 1, 'number': 3}}, 'v': 'a'})};\n", encoding="utf-8")
+    (site / "index.html").write_text('<script src="data.js?v=a"></script>', encoding="utf-8")
     taken = hosted.page_taken(tmp_path)
     web.patch_people(site, {"1": {"team": 1, "number": 3, "look": {"hair": "red"}}})
 
@@ -681,13 +681,13 @@ def test_the_commentary_an_upload_makes_leaves_its_page_on_time(tmp_path, monkey
 
     site = tmp_path / "review"
     site.mkdir()
-    (site / "data.js").write_text(f"window.MATCH = {json.dumps({'people': {'1': {'team': 1, 'number': 3}}, 'v': 'a'})};\n")
+    (site / "data.js").write_text(f"window.MATCH = {json.dumps({'people': {'1': {'team': 1, 'number': 3}}, 'v': 'a'})};\n", encoding="utf-8")
     taken = hosted.page_taken(tmp_path)
     # The upload's voice made, the review's next build takes it.
     monkeypatch.setattr(speech, "voice_index", lambda match, data, walls=(): {"lines": [[1.0, "a.mp3"]], "replay": {}, "folder": match})
 
     hosted.record_hosted(tmp_path, taken)
-    (site / "data.js").write_text(f"window.MATCH = {json.dumps({'people': {'1': {'team': 1, 'number': 3}}, 'voice': True, 'v': 'b'})};\n")
+    (site / "data.js").write_text(f"window.MATCH = {json.dumps({'people': {'1': {'team': 1, 'number': 3}}, 'voice': True, 'v': 'b'})};\n", encoding="utf-8")
 
     assert not hosted.read_hosted(tmp_path)["behind"]
 
@@ -752,16 +752,16 @@ class TestPageChanges:
         from volleyball_stats import hosted, matches
 
         scene = tmp_path / "scene3d.js"
-        scene.write_text("a")
+        scene.write_text("a", encoding="utf-8")
         monkeypatch.setitem(hosted.CODE_PAGES, "3d", scene)
         TestPageStamp.page(tmp_path, {"name": "m", "v": "a"})
         site = tmp_path / "site"
         site.mkdir()
-        (tmp_path / matches.PUBLISH).write_text(json.dumps({"site": str(site)}))
-        (site / matches.CODE).write_text(json.dumps({"code": matches.code_stamps()}))
+        (tmp_path / matches.PUBLISH).write_text(json.dumps({"site": str(site)}), encoding="utf-8")
+        (site / matches.CODE).write_text(json.dumps({"code": matches.code_stamps()}), encoding="utf-8")
         hosted.record_hosted(tmp_path)
         assert not hosted.read_hosted(tmp_path)["behind"]
-        scene.write_text("b")
+        scene.write_text("b", encoding="utf-8")
 
         assert not hosted.read_hosted(tmp_path, code=False)["behind"]
         state = hosted.read_hosted(tmp_path)
@@ -772,14 +772,14 @@ class TestPageChanges:
         from volleyball_stats import hosted
 
         scene = tmp_path / "scene3d.js"
-        scene.write_text("a")
+        scene.write_text("a", encoding="utf-8")
         monkeypatch.setitem(hosted.CODE_PAGES, "3d", scene)
         TestPageStamp.page(tmp_path, {"name": "m", "v": "a"})
         pages = ("list", "page", "3d")
-        (tmp_path / hosted.HOSTED_PAGE).write_text(json.dumps(hosted.page_content(tmp_path)))
-        (tmp_path / hosted.HOSTED).write_text(json.dumps({"at": "2026-11-20T23:01:11", "stamp": hosted.page_stamp(tmp_path, pages), "pages": list(pages), "code": "x"}))
+        (tmp_path / hosted.HOSTED_PAGE).write_text(json.dumps(hosted.page_content(tmp_path)), encoding="utf-8")
+        (tmp_path / hosted.HOSTED).write_text(json.dumps({"at": "2026-11-20T23:01:11", "stamp": hosted.page_stamp(tmp_path, pages), "pages": list(pages), "code": "x"}), encoding="utf-8")
         assert not hosted.read_hosted(tmp_path)["behind"]
-        scene.write_text("b")
+        scene.write_text("b", encoding="utf-8")
 
         assert not hosted.read_hosted(tmp_path)["behind"]
         TestPageStamp.page(tmp_path, {"name": "n", "v": "b"})
@@ -790,14 +790,14 @@ class TestPageChanges:
         from volleyball_stats import hosted
 
         scene = tmp_path / "scene3d.js"
-        scene.write_text("a")
+        scene.write_text("a", encoding="utf-8")
         monkeypatch.setitem(hosted.CODE_PAGES, "3d", scene)
         TestPageStamp.page(tmp_path, {"name": "m", "v": "a"})
         sent = hosted.page_content(tmp_path)
         del sent["code"]["3d"]
-        (tmp_path / hosted.HOSTED_PAGE).write_text(json.dumps(sent))
-        (tmp_path / hosted.HOSTED).write_text(json.dumps({"at": "2026-11-10T23:01:11", "stamp": hosted.page_stamp(tmp_path, hosted.OLD_STAMPED), "code": "x"}))
-        scene.write_text("b")
+        (tmp_path / hosted.HOSTED_PAGE).write_text(json.dumps(sent), encoding="utf-8")
+        (tmp_path / hosted.HOSTED).write_text(json.dumps({"at": "2026-11-10T23:01:11", "stamp": hosted.page_stamp(tmp_path, hosted.OLD_STAMPED), "code": "x"}), encoding="utf-8")
+        scene.write_text("b", encoding="utf-8")
 
         assert not hosted.read_hosted(tmp_path)["behind"]
         TestPageStamp.page(tmp_path, {"name": "n", "v": "b"})
@@ -823,8 +823,8 @@ class TestPageChanges:
 
         TestPageStamp.page(tmp_path, {"name": "m", "v": "a"})
         hosted.record_hosted(tmp_path)
-        saved = json.loads((tmp_path / hosted.HOSTED).read_text())
-        (tmp_path / hosted.HOSTED).write_text(json.dumps({**saved, "code": "older"}))
+        saved = json.loads((tmp_path / hosted.HOSTED).read_text(encoding="utf-8"))
+        (tmp_path / hosted.HOSTED).write_text(json.dumps({**saved, "code": "older"}), encoding="utf-8")
         before = hosted.page_stamp(tmp_path)
         TestPageStamp.page(tmp_path, {"name": "m", "timeouts": [], "v": "b"})
 

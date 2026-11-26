@@ -142,7 +142,7 @@ class TestPlan:
         planned = film.plan(page, tmp_path / "review", film.tracking_stamp(tmp_path))["Élodie"]
         (tmp_path / "films").mkdir()
         (tmp_path / "films" / planned["file"]).write_bytes(b"film")
-        (tmp_path / "films" / "manifest.json").write_text(json.dumps({"Élodie": {"hash": planned["hash"], "file": planned["file"]}}))
+        (tmp_path / "films" / "manifest.json").write_text(json.dumps({"Élodie": {"hash": planned["hash"], "file": planned["file"]}}), encoding="utf-8")
         assert film.status(tmp_path) == {"players": {"total": 1, "stale": []}, "highlights": none}
         page["people"]["1"]["jersey"] = 9
         assert film.status(tmp_path) == {"players": {"total": 1, "stale": ["Élodie"]}, "highlights": none}

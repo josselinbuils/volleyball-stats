@@ -38,13 +38,13 @@ TRACKERS = {
 
 def calibration():
     """Least squares on the line landmarks: the post distances are guesses."""
-    points = json.loads(COURT.read_text())["points"]
+    points = json.loads(COURT.read_text(encoding="utf-8"))["points"]
     return fit({n: tuple(p) for n, p in points.items() if not n.startswith("post")}, ransac=False)
 
 
 def load_truth(path: Path) -> dict[int, list[dict]]:
     by_frame: dict[int, list[dict]] = {}
-    with open(path) as f:
+    with open(path, encoding="utf-8") as f:
         for row in csv.DictReader(f):
             by_frame.setdefault(int(row["frame"]), []).append({**row, "xy": (float(row["x"]), float(row["y"]))})
     return by_frame

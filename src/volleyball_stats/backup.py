@@ -26,7 +26,7 @@ from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
 
-from volleyball_stats import files, matches, tables
+from volleyball_stats import files, matches, tables, transfer
 
 ROOT = "/root/backups/volleyball-stats"
 # Old copies of the results, the pages built from them (the review's links the video), half-written files, the review's
@@ -142,7 +142,7 @@ def snapshot(host: str, ssh: list[str], root: str, day: str, previous: str) -> N
     """The copy `day` started on the server as the `previous` one, hard-linked (backup_remote.py): nothing uploaded, no
     room taken."""
     command = "python3 - " + " ".join(shlex.quote(a) for a in (root, day, previous))
-    subprocess.run([*ssh, host, command], input=REMOTE.read_text(), check=True, capture_output=True, text=True, timeout=600)
+    subprocess.run([*ssh, host, command], input=REMOTE.read_text(encoding="utf-8"), check=True, capture_output=True, text=True, timeout=600, encoding="utf-8", errors="replace")
 
 
 def rsync_command(paths: list[Path], host: str, ssh: list[str], root: str, day: str, merge: bool = False) -> list[str]:
@@ -176,7 +176,7 @@ def backup(match: Path, root: str | None = None) -> None:
     """Copies `match` and what sits beside it to the server of its publish.json; raises what went wrong. `sync.push`
     calls it, under the match's claim."""
     root = root or ROOT
-    copy(files.root(match), [match], sources(match)[1:], json.loads((match / matches.PUBLISH).read_text()), match.name, root)
+    copy(files.root(match), [match], sources(match)[1:], json.loads((match / matches.PUBLISH).read_text(encoding="utf-8")), match.name, root)
 
 
 def backup_shared(outputs: Path, config: dict, root: str | None = None) -> None:
@@ -227,7 +227,7 @@ def room(free_gb: float, need: int) -> None:
 
 def free_gb(host: str, ssh: list[str], folder: str) -> float:
     """The GB free on the server where `folder` is."""
-    run = subprocess.run([*ssh, host, f"df -Pk {shlex.quote(folder)} | tail -1"], capture_output=True, text=True, timeout=60)
+    run = subprocess.run([*ssh, host, f"df -Pk {shlex.quote(folder)} | tail -1"], capture_output=True, text=True, timeout=60, encoding="utf-8", errors="replace")
     if run.returncode:
         raise RuntimeError(run.stderr.strip() or f"ssh: {run.returncode}")
     return int(run.stdout.split()[3]) / 1024**2
@@ -238,7 +238,7 @@ def upload(own: list[Path], beside: list[Path], config: dict, name: str | None, 
     day = copy_id()
 
     def remote(command: str) -> str:
-        run = subprocess.run([*ssh, host, command], capture_output=True, text=True, timeout=60)
+        run = subprocess.run([*ssh, host, command], capture_output=True, text=True, timeout=60, encoding="utf-8", errors="replace")
         if run.returncode:
             raise RuntimeError(run.stderr.strip() or f"ssh: {run.returncode}")
         return run.stdout
@@ -250,7 +250,7 @@ def upload(own: list[Path], beside: list[Path], config: dict, name: str | None, 
     need = 0
     for paths, merge in ((own, False), (beside, True)):
         if paths:
-            dry = subprocess.run(dry_run(rsync_command(paths, host, ssh, root, start, merge)), capture_output=True, text=True, timeout=TIMEOUT_S)
+            dry = subprocess.run(transfer.local(dry_run(rsync_command(paths, host, ssh, root, start, merge))), capture_output=True, text=True, timeout=TIMEOUT_S, encoding="utf-8", errors="replace")
             if dry.returncode not in (0, VANISHED) and not vanished(dry.stderr):
                 raise RuntimeError(dry.stderr.strip() or f"rsync: {dry.returncode}")
             need += sent_bytes(dry.stdout, within(paths))
@@ -261,7 +261,7 @@ def upload(own: list[Path], beside: list[Path], config: dict, name: str | None, 
     for paths, merge in ((own, False), (beside, True)):
         if not paths:
             continue
-        run = subprocess.run(rsync_command(paths, host, ssh, root, day, merge), capture_output=True, text=True, timeout=TIMEOUT_S)
+        run = subprocess.run(transfer.local(rsync_command(paths, host, ssh, root, day, merge)), capture_output=True, text=True, timeout=TIMEOUT_S, encoding="utf-8", errors="replace")
         if run.returncode not in (0, VANISHED) and not vanished(run.stderr):
             raise RuntimeError(run.stderr.strip() or f"rsync: {run.returncode}")
     days.setdefault(day, set()).update([name] if name else [])
@@ -282,8 +282,8 @@ def rename_copies(match: Path, old: str, root: str | None = None) -> None:
     path = match / matches.PUBLISH
     if not path.exists():
         return
-    host, ssh = connection(json.loads(path.read_text()))
-    subprocess.run([*ssh, host, rename_command(root, old, match.name)], check=True, capture_output=True, text=True, timeout=120)
+    host, ssh = connection(json.loads(path.read_text(encoding="utf-8")))
+    subprocess.run([*ssh, host, rename_command(root, old, match.name)], check=True, capture_output=True, text=True, timeout=120, encoding="utf-8", errors="replace")
 
 
 def rename_command(root: str, old: str, new: str) -> str:

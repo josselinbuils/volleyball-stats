@@ -108,7 +108,7 @@ class TestReadJerseys:
 
     def test_reads_sharp_footage_once(self, tmp_path, monkeypatch):
         assert self.run(tmp_path, monkeypatch, 2160) == [tmp_path]
-        assert "25" in (tmp_path / jerseys.FILE).read_text()
+        assert "25" in (tmp_path / jerseys.FILE).read_text(encoding="utf-8")
         assert self.run(tmp_path, monkeypatch, 2160) == []
 
     def test_leaves_small_footage_alone(self, tmp_path, monkeypatch):

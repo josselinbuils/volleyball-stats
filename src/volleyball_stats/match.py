@@ -15,7 +15,6 @@ import argparse
 import csv
 import os
 import queue
-import subprocess
 import sys
 import threading
 import time
@@ -28,7 +27,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from volleyball_stats import actions, analysis, attribution, ball, ball3d, ballsize, contacts, court, decode, estimate, files, gesture, identity, jerseys, jobs, jumps, players, playing, points, rallies, ranker, resume, scoreboard, teams, timeouts
+from volleyball_stats import actions, analysis, attribution, ball, ball3d, ballsize, contacts, court, decode, estimate, files, gesture, identity, jerseys, jobs, jumps, players, playing, points, procs, rallies, ranker, resume, scoreboard, teams, timeouts
 
 TYPES = ["serve", "pass", "set", "attack", "relance", "block", "dig", "floor", "net"]
 # Balls under the line SPARE_Y meters toward the camera (1 m past the near sideline) are spare ones,
@@ -396,9 +395,7 @@ def slow_run_reasons(nice: int, load: float, cores: int) -> list[str]:
 
 def busiest(count: int = 5) -> list[str]:
     """The processes using the most CPU, as "12.3% name"."""
-    lines = subprocess.run(["ps", "-Ao", "pcpu=,comm="], capture_output=True, text=True).stdout.splitlines()
-    rows = [line.split(None, 1) for line in lines if len(line.split(None, 1)) == 2]
-    return [f"{cpu}% {Path(name).name}" for cpu, name in sorted(rows, key=lambda r: -float(r[0].replace(",", ".")))[:count]]
+    return procs.busiest(count)
 
 
 def review_page(out: Path, video: Path, court: Path, share: jobs.Share = jobs.quiet) -> None:
@@ -508,7 +505,7 @@ def main() -> None:
         keep=new_players or not args.players,
     )
     if new_ball or new_players:
-        reasons = slow_run_reasons(os.nice(0), os.getloadavg()[0], os.cpu_count() or 1)
+        reasons = slow_run_reasons(procs.priority(), procs.load(), os.cpu_count() or 1)
         if reasons and not args.anyway:
             parser.error(" ".join(reasons) + " Using the most CPU: " + ", ".join(busiest()) + ". --anyway to track all the same.")
         stage("tracking")
@@ -670,7 +667,7 @@ def main() -> None:
         tracks = {names[0]: counts[1], names[1]: counts[2]}
         text = report(args.video, fps, frame_count, windows, typed, crossings, timings, tracks, names, contact_teams, sets, settled["date"], settled["title"])
         text += "\n" + "\n".join(f"- {line}" for line in points.summary(found_points, settled["scores"])) + "\n"
-    (out / "report.md").write_text(text)
+    (out / "report.md").write_text(text, encoding="utf-8")
     if args.players:
         analysis.write(out, made)
     print(text, end="")

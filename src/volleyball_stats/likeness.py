@@ -190,7 +190,7 @@ def chosen(match: Path) -> dict[str, dict]:
     out: dict[str, dict] = {}
     others = sorted((p for p in match.parent.glob(f"*/{CHOICES}") if p.parent != match), key=lambda p: p.stat().st_mtime)
     for path in others:
-        out.update({who: look for who, look in json.loads(path.read_text()).items() if ":" not in who and not NUMBERED.fullmatch(who)})
+        out.update({who: look for who, look in json.loads(path.read_text(encoding="utf-8")).items() if ":" not in who and not NUMBERED.fullmatch(who)})
     path = match / CHOICES
     for who, look in (files.read_json(path, {})).items():
         out[who] = {**out.get(who, {}), **look}

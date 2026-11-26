@@ -50,11 +50,11 @@ def load_units(match: str) -> list[Unit]:
     """Every stored file of the match with its labels; frames off the pretrained model's path (offpath.csv) are skipped."""
     folder = OUT / match
     rows: dict[str, list[dict]] = {}
-    with (folder / "labels.csv").open() as f:
+    with (folder / "labels.csv").open(encoding="utf-8") as f:
         for r in csv.DictReader(f):
             rows.setdefault(r["unit"], []).append(r)
     off = {}
-    with (folder / "offpath.csv").open() as f:
+    with (folder / "offpath.csv").open(encoding="utf-8") as f:
         for r in csv.DictReader(f):
             off.setdefault(r["unit"], set()).add(int(r["frame"]))
     units = []

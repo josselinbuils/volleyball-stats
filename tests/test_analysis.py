@@ -6,9 +6,9 @@ from volleyball_stats import analysis
 class TestCode:
     def test_comments_layout_and_docstrings_change_nothing(self, tmp_path):
         a, b, c = (tmp_path / n for n in ("a.py", "b.py", "c.py"))
-        a.write_text('def f(x):\n    """Twice."""\n    return 2 * x\n')
-        b.write_text("def f(x):\n    # twice\n    return 2*x\n")
-        c.write_text("def f(x):\n    return 3 * x\n")
+        a.write_text('def f(x):\n    """Twice."""\n    return 2 * x\n', encoding="utf-8")
+        b.write_text("def f(x):\n    # twice\n    return 2*x\n", encoding="utf-8")
+        c.write_text("def f(x):\n    return 3 * x\n", encoding="utf-8")
 
         assert analysis.code(a) == analysis.code(b) != analysis.code(c)
 
@@ -27,4 +27,4 @@ class TestMadeBy:
         analysis.write(tmp_path, "abc")
 
         assert analysis.made_by(tmp_path) == "abc"
-        assert json.loads((tmp_path / analysis.FILE).read_text()) == {"code": "abc"}
+        assert json.loads((tmp_path / analysis.FILE).read_text(encoding="utf-8")) == {"code": "abc"}

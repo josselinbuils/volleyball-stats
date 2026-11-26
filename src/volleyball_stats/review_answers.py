@@ -436,7 +436,7 @@ def prototypes(cache: Path, table: list[tuple[int, int, int, int, int]]) -> dict
 
 
 def load_roster(path: Path) -> list[dict]:
-    return json.loads(path.read_text())["players"] if path.exists() else []
+    return json.loads(path.read_text(encoding="utf-8"))["players"] if path.exists() else []
 
 
 def card_numbers(table: list[tuple[int, int, int, int, int]], read: dict[tuple[int, int], int] | None, pictures: dict[tuple[int, int], Counter] | None = None) -> dict[tuple[int, int], int]:
@@ -555,7 +555,7 @@ def follow_teams(path: Path, outputs: Path) -> None:
         folder = outputs / name
         if not (folder / "teams.json").exists() or not (folder / "identities.csv").exists():
             continue
-        teams = [t.get("name") for t in json.loads((folder / "teams.json").read_text())["teams"]]
+        teams = [t.get("name") for t in json.loads((folder / "teams.json").read_text(encoding="utf-8"))["teams"]]
         sides: dict[str, set[int]] = {}
         for (team, _), given in identity.named(identity.read_identities(folder / "identities.csv"), identity.read_names(folder)).items():
             if given.get("name"):
@@ -598,7 +598,7 @@ def set_name(match: Path, questions: "Questions", team: int, number: int, given:
 
 def read_absent(match: Path) -> list[tuple[int, str]]:
     path = match / ABSENT
-    return [(int(t), n) for t, n in json.loads(path.read_text())["absent"]] if path.exists() else []
+    return [(int(t), n) for t, n in json.loads(path.read_text(encoding="utf-8"))["absent"]] if path.exists() else []
 
 
 def name_absent(match: Path, table: list, team: int, name: str | None, removed: str | None) -> None:
@@ -659,7 +659,7 @@ def set_team(match: Path, team: int, name: str | None, colour: str | None) -> No
     """teams.json with team `team` (1 or 2) named `name` (None: its default name) and shown in
     `colour` (#rrggbb or a colour's name; None: its jersey's). ValueError for anything else."""
     path = match / "teams.json"
-    data = json.loads(path.read_text())
+    data = json.loads(path.read_text(encoding="utf-8"))
     read = parse_colour(colour) if colour else None
     if team not in (1, 2) or (colour and read is None):
         raise ValueError(f"team {team}, colour {colour!r}")
@@ -671,7 +671,7 @@ def set_end(match: Path, time: str | None) -> None:
     """teams.json with the end of the match at `time` (m:ss or h:mm:ss), none for None or empty.
     ValueError for anything else."""
     path = match / "teams.json"
-    data = json.loads(path.read_text())
+    data = json.loads(path.read_text(encoding="utf-8"))
     text = (time or "").strip()
     if text:
         seconds(text)
@@ -684,7 +684,7 @@ def set_end(match: Path, time: str | None) -> None:
 def given_sets(match: Path) -> list[str]:
     """The set starts teams.json gives, as written."""
     path = match / "teams.json"
-    return (json.loads(path.read_text()).get("sets") or ["0:00"]) if path.exists() else ["0:00"]
+    return (json.loads(path.read_text(encoding="utf-8")).get("sets") or ["0:00"]) if path.exists() else ["0:00"]
 
 
 def set_start(match: Path, fps: float, add: float | None = None, remove: str | None = None) -> None:
@@ -692,7 +692,7 @@ def set_start(match: Path, fps: float, add: float | None = None, remove: str | N
     middle of the break before it), or without the set start `remove`; the scores of the sets kept stay theirs.
     ValueError for a first rally, a moment after the last one, or the first set's start."""
     path = match / "teams.json"
-    data = json.loads(path.read_text())
+    data = json.loads(path.read_text(encoding="utf-8"))
     starts = data.get("sets") or ["0:00"]
     scores = dict(zip(starts, data.get("scores") or []))
     if add is not None:

@@ -11,7 +11,7 @@ class TestRecord:
         monkeypatch.setattr(learn, "scores", lambda *_, **__: {"who": (3, 4)})
         record(tmp_path, tmp_path, tmp_path)
         record(tmp_path, tmp_path, tmp_path, {"who": (2, 4)})
-        first, second = json.loads((tmp_path / "learn.json").read_text())
+        first, second = json.loads((tmp_path / "learn.json").read_text(encoding="utf-8"))
         assert "before" not in first
         assert second["before"] == {"who": [2, 4]}
 
@@ -36,10 +36,10 @@ class TestFromAnswers:
             "added": [{"start": 90, "frame": 205, "team": 1, "type": "set"}, {"start": 90, "frame": 400, "team": 1, "type": "set"}],
             "action": [{"frame": 100, "type": "pass"}],
             "rally": [{"start": 90, "play": True}, {"start": 500, "play": False}],
-        }))
-        (tmp_path / "actions.csv").write_text("frame,type,team,identity\n100,pass,1,3\n200,set,1,4\n")
-        (tmp_path / "rallies.csv").write_text("start_frame,end_frame\n90,450\n")
-        (tmp_path / "identities.csv").write_text("track,start_frame,end_frame,team,identity\n")
+        }), encoding="utf-8")
+        (tmp_path / "actions.csv").write_text("frame,type,team,identity\n100,pass,1,3\n200,set,1,4\n", encoding="utf-8")
+        (tmp_path / "rallies.csv").write_text("start_frame,end_frame\n90,450\n", encoding="utf-8")
+        (tmp_path / "identities.csv").write_text("track,start_frame,end_frame,team,identity\n", encoding="utf-8")
 
         out = from_answers(tmp_path, 50.0)
 
@@ -54,9 +54,9 @@ class TestFromAnswers:
 class TestFromChecked:
     def test_bounces_after_the_rallys_end_leave_both_sides(self, tmp_path, monkeypatch):
         monkeypatch.setattr(learn, "players", lambda _: ([], {}))
-        (tmp_path / "identity_answers.json").write_text(json.dumps({"log": [{"checked": [90]}]}))
+        (tmp_path / "identity_answers.json").write_text(json.dumps({"log": [{"checked": [90]}]}), encoding="utf-8")
         # The pipeline's touch at 2 s and its bounce after the end (3 s), the review's the same.
-        (tmp_path / "actions.csv").write_text("frame,type,team,identity\n100,pass,1,3\n175,floor,,\n")
+        (tmp_path / "actions.csv").write_text("frame,type,team,identity\n100,pass,1,3\n175,floor,,\n", encoding="utf-8")
         page = {"rallies": [{"key": 90, "start": 1.8, "end": 3.0}], "people": {}, "contacts": [{"rally": 0, "t": 2.0, "type": "pass"}, {"rally": 0, "t": 3.5, "type": "floor"}]}
 
         out = from_checked(tmp_path, page, 50.0)
@@ -72,9 +72,9 @@ class TestAnswered:
         for name, answered, video in (("one", True, "a.mp4"), ("other", True, "a.mp4"), ("unanswered", False, "a.mp4"), ("no_video", True, "gone.mp4")):
             folder = tmp_path / "matches" / name
             folder.mkdir(parents=True)
-            (folder / "source.json").write_text(json.dumps({"video": video, "court": "c.json"}))
+            (folder / "source.json").write_text(json.dumps({"video": video, "court": "c.json"}), encoding="utf-8")
             if answered:
-                (folder / "identity_answers.json").write_text("{}")
+                (folder / "identity_answers.json").write_text("{}", encoding="utf-8")
 
         assert learn.answered(tmp_path / "matches") == [f"{tmp_path / 'matches' / n}:{tmp_path / 'a.mp4'}:{tmp_path / 'c.json'}" for n in ("one", "other")]
 

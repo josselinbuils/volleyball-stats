@@ -47,9 +47,9 @@ STEPS = ["whistles", "finish", "teams", "attribution", "identity", "web", "revie
 def tile(src: Path, dst: Path, times: int, frames: int, keys: dict[str, str]) -> None:
     """`src` CSV repeated `times` times, frames shifted by `frames` and tracks by 10,000 per copy;
     `keys` maps each column to "frame", "track" or "" (kept)."""
-    with open(src) as f:
+    with open(src, encoding="utf-8") as f:
         rows = list(csv.DictReader(f))
-    with open(dst, "w", newline="") as f:
+    with open(dst, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=list(rows[0]))
         writer.writeheader()
         for k in range(times):
@@ -74,7 +74,7 @@ def build(clip: str, times: int) -> None:
     tile(src / "net.csv", OUT / "net.csv", times, frames, {"frame": "frame"})
     tile(src / "tracks.csv", OUT / "tracks.csv", times, frames, {"track": "track"})
     tile(src / "points.csv", OUT / "points.csv", times, frames, {"start_frame": "frame", "end_frame": "frame"})
-    (OUT / "teams.json").write_text((src / "teams.json").read_text())
+    (OUT / "teams.json").write_text((src / "teams.json").read_text(encoding="utf-8"), encoding="utf-8")
     seconds = times * frames / fps
     subprocess.run(
         ["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", f"color=black:s=64x36:r={fps}:d={seconds}", "-f", "lavfi", "-i", f"anoisesrc=d={seconds}:a=0.02:r=16000",
@@ -89,7 +89,7 @@ def step(name: str) -> None:
     from volleyball_stats.court import Calibration
 
     fps = cv2.VideoCapture(str(VIDEO)).get(cv2.CAP_PROP_FPS)
-    with open(OUT / "rallies.csv") as f:
+    with open(OUT / "rallies.csv", encoding="utf-8") as f:
         rally_rows = list(csv.DictReader(f))
     windows = [(int(r["start_frame"]), int(r["end_frame"])) for r in rally_rows]
     left = [int(r["left"]) if r.get("left") else None for r in rally_rows]
@@ -120,7 +120,7 @@ def step(name: str) -> None:
         found = teams.assign(VIDEO, rows, windows, fps)
         return print(f"{len(found.tracks)} tracks")
     if name == "attribution":
-        with open(OUT / "actions.csv") as f:
+        with open(OUT / "actions.csv", encoding="utf-8") as f:
             typed = [(int(r["frame"]), int(r["x"]), int(r["y"]), r["type"], r["side"]) for r in csv.DictReader(f)]
         return print(f"{sum(t is not None for t in attribution.attribute(typed, rows, fps))} / {len(typed)} attributed")
     if name == "identity":
@@ -151,7 +151,7 @@ def main() -> None:
         return print(f"| {args.command} | {time.perf_counter() - start:.0f} s | {peak / 1e9:.1f} GB |")
     print("| step | time | peak memory |\n| --- | --- | --- |")
     for name in STEPS:
-        result = subprocess.run([sys.executable, __file__, name], capture_output=True, text=True)
+        result = subprocess.run([sys.executable, __file__, name], capture_output=True, text=True, encoding="utf-8", errors="replace")
         lines = [line for line in result.stdout.splitlines() if line.startswith("|")]
         print(lines[-1] if lines else f"| {name} | failed: {(result.stderr.strip().splitlines() or ['?'])[-1]} | |", flush=True)
 

@@ -294,9 +294,8 @@ def decoder(video: Path, times: np.ndarray, frame: int, count: int) -> subproces
     the CPU's pixels (decode.piped). Three films at once on the Avia match: 125 s against 133, the reading 1.6x faster (the
     drawing takes the rest)."""
     flags = decode.hardware(video)
-    return subprocess.Popen(
-        ["ffmpeg", "-v", "quiet", *flags, "-ss", f"{times[frame] - 0.004:.4f}", "-i", str(video), "-frames:v", str(count), "-an", *(("-vf", "format=yuv420p") if flags else ()), "-f", "rawvideo", "-pix_fmt", "bgr24", "-"],
-        stdout=subprocess.PIPE,
+    return decode.popen(
+        ["ffmpeg", "-v", "quiet", *flags, "-ss", f"{times[frame] - 0.004:.4f}", "-i", str(video), "-frames:v", str(count), "-an", *(("-vf", "format=yuv420p") if flags else ()), "-f", "rawvideo", "-pix_fmt", "bgr24", "-"]
     )
 
 

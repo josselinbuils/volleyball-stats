@@ -1,6 +1,11 @@
+import shutil
 import subprocess
 
+import pytest
+
 from volleyball_stats import git_check
+
+pytestmark = pytest.mark.skipif(not shutil.which("git"), reason="no git")
 
 
 class TestBehindWarning:
@@ -49,7 +54,7 @@ class TestCommitsSince:
     @staticmethod
     def repo(tmp_path):
         def commit(text: str, subject: str) -> str:
-            (tmp_path / "page.html").write_text(text)
+            (tmp_path / "page.html").write_text(text, encoding="utf-8")
             subprocess.run(["git", "-C", str(tmp_path), "add", "."], check=True)
             subprocess.run(["git", "-C", str(tmp_path), "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", subject], check=True)
             return git_check.hashlib.sha256(text.encode()).hexdigest()[:16]
@@ -62,7 +67,7 @@ class TestCommitsSince:
         sent = commit("a\n", "feat: the first page")
         commit("b\n", "feat: the net drawn thinner (net.ts); fix: x")
         now = commit("c\n", 'fix: the question "Haut : d\'une main ?": details')
-        (tmp_path / "other.txt").write_text("x")
+        (tmp_path / "other.txt").write_text("x", encoding="utf-8")
 
         found = git_check.commits_since(tmp_path / "page.html", sent, now)
 

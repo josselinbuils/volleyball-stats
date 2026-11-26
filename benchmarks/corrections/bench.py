@@ -37,7 +37,7 @@ def matches(prefix: str | None) -> list[str]:
 
 
 def source(name: str) -> tuple[Path, Path]:
-    given = json.loads((MATCHES / name / "source.json").read_text())
+    given = json.loads((MATCHES / name / "source.json").read_text(encoding="utf-8"))
     return ROOT / given["video"], ROOT / given["court"]
 
 
@@ -60,7 +60,7 @@ def freeze(name: str) -> None:
         out.append({"key": r["key"], "start": r["start"], "end": r["end"], "start_frame": round(r["start"] * fps), "end_frame": round(r["end"] * fps), "winner": r.get("winner"), "redo": bool(r.get("redo")), "touches": touches})
     path = BASE / name / "truth.json"
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps({"match": name, "fps": fps, "frozen": time.strftime("%Y-%m-%d %H:%M"), "checked_keys": len(keys), "rallies": out}, indent=1) + "\n")
+    path.write_text(json.dumps({"match": name, "fps": fps, "frozen": time.strftime("%Y-%m-%d %H:%M"), "checked_keys": len(keys), "rallies": out}, indent=1) + "\n", encoding="utf-8")
     print(f"{name}: {len(out)} rallies, {sum(len(r['touches']) for r in out)} touches -> {path}")
 
 
@@ -98,7 +98,7 @@ def run(name: str, run_name: str, ball_path: Path | None = None, play: Path | No
         last[:] = [label, now]
         print(f"[{now - start:7.0f} s] {label}", flush=True)
 
-    with open(scratch.parent / "run.log", "w") as log, contextlib.redirect_stdout(log):
+    with open(scratch.parent / "run.log", "w", encoding="utf-8") as log, contextlib.redirect_stdout(log):
         os.chdir(ROOT)
         learn.rerun(scratch, video, court, on_stage)
     on_stage("end")
@@ -107,7 +107,7 @@ def run(name: str, run_name: str, ball_path: Path | None = None, play: Path | No
     kept = set(review_answers.checked(review_answers.log_of(scratch)))
     now = {r["key"] for r in page["rallies"]}
     info = {"seconds": round(seconds, 1), "stages": stages, "commit": learn.commit(), "checked_keys_after": len(kept), "checked_rallies_on_page": len(kept & now), "rallies": len(page["rallies"])}
-    (scratch.parent / "run.json").write_text(json.dumps(info, indent=1) + "\n")
+    (scratch.parent / "run.json").write_text(json.dumps(info, indent=1) + "\n", encoding="utf-8")
     print(f"{name}: rerun {seconds / 60:.1f} min; checked rallies on the new page {info['checked_rallies_on_page']} (keys kept {len(kept)})")
 
 
@@ -193,7 +193,7 @@ def corrections(folder: Path, truth: dict) -> tuple[dict, list[dict], dict[int, 
 def load_truth(name: str, folder: Path | None = None) -> dict:
     """truth.json with its `renames` applied ({"old": "new"}: a player renamed in the review after the freeze), those
     `folder`'s run still knows by the old name left."""
-    truth = json.loads((BASE / name / "truth.json").read_text())
+    truth = json.loads((BASE / name / "truth.json").read_text(encoding="utf-8"))
     known = {who for _, who in learn.players(folder)[1]} if folder else set()
     renames = {a: b for a, b in truth.get("renames", {}).items() if a not in known}
     for r in truth["rallies"]:
@@ -225,9 +225,9 @@ def score(name: str, run_name: str, folder: Path | None, other: str | None) -> N
     summary = {"match": name, "run": run_name, "metrics": metrics, "counts": count, "per_rally": per}
     out = BASE / name / "runs" / run_name
     out.mkdir(parents=True, exist_ok=True)
-    (out / "corrections.json").write_text(json.dumps(found, indent=1) + "\n")
-    (out / "summary.json").write_text(json.dumps(summary, indent=1) + "\n")
-    before = json.loads((BASE / name / "runs" / other / "summary.json").read_text()) if other else None
+    (out / "corrections.json").write_text(json.dumps(found, indent=1) + "\n", encoding="utf-8")
+    (out / "summary.json").write_text(json.dumps(summary, indent=1) + "\n", encoding="utf-8")
+    before = json.loads((BASE / name / "runs" / other / "summary.json").read_text(encoding="utf-8")) if other else None
     print(f"== {name} [{run_name}]")
     for who, n in unknown_names(folder, truth).items():
         print(f"WARNING: {who} ({n} touches) is no player of this run: renamed since the freeze? add it to truth.json's renames")

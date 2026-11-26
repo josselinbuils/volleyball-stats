@@ -66,9 +66,9 @@ class TestProfiles:
     def test_prefers_the_latest_calibrated_here(self, tmp_path):
         (tmp_path / OWN).mkdir()
         for name, made in (("old", "2026-11-01"), ("new", "2026-11-20")):
-            (tmp_path / OWN / f"{name}.json").write_text(json.dumps({"camera": self.OSMO, "made": made}))
+            (tmp_path / OWN / f"{name}.json").write_text(json.dumps({"camera": self.OSMO, "made": made}), encoding="utf-8")
         unnamed = {**self.OSMO, "model": None}
-        (tmp_path / OWN / "unnamed.json").write_text(json.dumps({"camera": unnamed, "made": "2026-11-02"}))
+        (tmp_path / OWN / "unnamed.json").write_text(json.dumps({"camera": unnamed, "made": "2026-11-02"}), encoding="utf-8")
 
         assert for_camera(tmp_path, self.OSMO).name == "new.json"
         assert for_camera(tmp_path, unnamed).name == "unnamed.json"
@@ -78,7 +78,7 @@ class TestProfiles:
         match.mkdir(parents=True)
 
         assert for_match(tmp_path, match) is None
-        (tmp_path / LEGACY).write_text("{}")
+        (tmp_path / LEGACY).write_text("{}", encoding="utf-8")
         assert for_match(tmp_path, match) == tmp_path / LEGACY
-        (match / CAMERA).write_text(json.dumps({**self.OSMO, "model": "Apple iPhone 15"}))
+        (match / CAMERA).write_text(json.dumps({**self.OSMO, "model": "Apple iPhone 15"}), encoding="utf-8")
         assert for_match(tmp_path, match) is None

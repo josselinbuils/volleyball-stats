@@ -33,14 +33,14 @@ def test_the_figure_and_hair_set_by_name_hold_across_matches(tmp_path):
     choose(a, "Landy", "figure", "woman")
     choose(a, "1:3", "figure", "woman")
     choose(a, "Landy", "hair", "grey")
-    (b / likeness.CHOICES).write_text(json.dumps({"Landy": {"hair": "blond", "skin": 4}}))
+    (b / likeness.CHOICES).write_text(json.dumps({"Landy": {"hair": "blond", "skin": 4}}), encoding="utf-8")
 
     # Another match's by name, not by card, this match's over it; nothing but the figure and the hair.
     assert chosen(b) == {"Landy": {"figure": "woman", "hair": "blond"}}
     assert chosen(a)["1:3"] == {"figure": "woman"}
     assert corrected({"hair": "dark", "style": "short", "skin": 2}, chosen(b)["Landy"]) == {"hair": "blond", "style": "short", "skin": 2, "figure": "woman"}
     choose(a, "1:3", "figure", None)
-    assert "1:3" not in json.loads((a / likeness.CHOICES).read_text())
+    assert "1:3" not in json.loads((a / likeness.CHOICES).read_text(encoding="utf-8"))
     with pytest.raises(ValueError):
         choose(a, "Landy", "figure", "child")
     with pytest.raises(ValueError):

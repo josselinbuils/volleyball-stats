@@ -8,7 +8,7 @@ class TestRead:
     def test_reads_the_reports_and_skips_what_is_not_one(self, tmp_path):
         report = {"match": "first_match", "time": 61.5, "rally": 3, "kind": "player", "comment": "C'est Maeva"}
         lines = [json.dumps({"received": "2026-10-31T15:00:00+00:00", "report": json.dumps(report)}), "not json", json.dumps({"received": "x", "report": "{cut"})]
-        (tmp_path / "feedback.log").write_text("\n".join(lines) + "\n")
+        (tmp_path / "feedback.log").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
         assert read(tmp_path / "feedback.log") == [{**report, "received": "2026-10-31T15:00:00+00:00"}]
 
@@ -17,7 +17,7 @@ class TestRead:
         details = {**flag, "kind": "player", "comment": "C'est Maeva"}
         other = {"id": "b2", "match": "m", "time": 90.0, "kind": "flag", "comment": ""}
         lines = [json.dumps({"received": f"t{k}", "report": json.dumps(r)}) for k, r in enumerate((flag, other, details))]
-        (tmp_path / "feedback.log").write_text("\n".join(lines) + "\n")
+        (tmp_path / "feedback.log").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
         assert read(tmp_path / "feedback.log") == [{**details, "received": "t0"}, {**other, "received": "t1"}]
 
@@ -31,7 +31,7 @@ class TestFetch:
         def run(cmd, **_):
             calls.append(cmd)
             if cmd[0] == "scp":
-                Path(cmd[-1]).write_text('{"report": "{}"}\n')
+                Path(cmd[-1]).write_text('{"report": "{}"}\n', encoding="utf-8")
 
         monkeypatch.setattr(feedback.subprocess, "run", run)
         got = feedback.fetch(tmp_path, "root@host:/srv/vbs/site/", "~/key")
@@ -48,7 +48,7 @@ class TestFetch:
         def run(cmd, **_):
             calls.append(cmd)
             if cmd[0] == "scp":
-                Path(cmd[-1]).write_text("")
+                Path(cmd[-1]).write_text("", encoding="utf-8")
 
         monkeypatch.setattr(feedback.subprocess, "run", run)
 
@@ -63,8 +63,8 @@ class TestFetchAll:
         for name, publish in (("new_name", {"upload": "root@h:/srv/site/", "key": "k"}), ("other", {"upload": "root@h:/srv/site/", "key": "k"}), ("local", None)):
             (tmp_path / "matches" / name).mkdir(parents=True)
             if publish:
-                (tmp_path / "matches" / name / "publish.json").write_text(json.dumps(publish))
-        (tmp_path / "matches" / "new_name" / "source.json").write_text(json.dumps({"aliases": ["old_name"]}))
+                (tmp_path / "matches" / name / "publish.json").write_text(json.dumps(publish), encoding="utf-8")
+        (tmp_path / "matches" / "new_name" / "source.json").write_text(json.dumps({"aliases": ["old_name"]}), encoding="utf-8")
         fetched = []
 
         def fetch(folder, upload, key):
@@ -72,7 +72,7 @@ class TestFetchAll:
             log = folder / f"feedback-{len(fetched)}.log"
             folder.mkdir(parents=True, exist_ok=True)
             reports = [{"id": "a", "match": "old_name"}, {"id": "b", "match": "other"}, {"id": "c", "match": "gone"}]
-            log.write_text("".join(json.dumps({"received": "t", "report": json.dumps(r)}) + "\n" for r in reports))
+            log.write_text("".join(json.dumps({"received": "t", "report": json.dumps(r)}) + "\n" for r in reports), encoding="utf-8")
             return log
 
         monkeypatch.setattr(feedback, "fetch", fetch)

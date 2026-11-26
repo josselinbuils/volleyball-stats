@@ -27,7 +27,7 @@ class TestOnCourt:
     def test_counts_the_feet_on_the_court_at_each_step(self, tmp_path):
         path = tmp_path / "players.csv"
         feet = [(0, 1, 1.0, 1.0), (0, 2, -9.0, 4.0), (0, 3, 12.0, 0.0), (0, 4, 0.0, 7.0), (3, 1, 0.0, 0.0), (5, 1, 0.0, 0.0)]
-        path.write_text("frame,track,team,x1,y1,x2,y2,conf,feet_x,feet_y,court_x,court_y\n" + "".join(f"{f},{t},left,0.0,0.0,1.0,1.0,0.9,0.5,1.0,{x},{y}\n" for f, t, x, y in feet))
+        path.write_text("frame,track,team,x1,y1,x2,y2,conf,feet_x,feet_y,court_x,court_y\n" + "".join(f"{f},{t},left,0.0,0.0,1.0,1.0,0.9,0.5,1.0,{x},{y}\n" for f, t, x, y in feet), encoding="utf-8")
         assert timeouts.on_court(path, 5) == {0: 2, 5: 1}
 
 
@@ -58,30 +58,30 @@ class TestAdded:
 
 class TestAnswer:
     def test_corrections_are_kept_and_the_last_wins(self, tmp_path):
-        (tmp_path / timeouts.DETECTED).write_text("start_frame,end_frame\n100,200\n300,400\n")
+        (tmp_path / timeouts.DETECTED).write_text("start_frame,end_frame\n100,200\n300,400\n", encoding="utf-8")
         assert timeouts.answer(tmp_path, 10.0, {"start": 100, "end": 200, "team": 2})[0]["team"] == 2
         assert timeouts.answer(tmp_path, 10.0, {"start": 100, "end": 200, "team": None})[0]["team"] is None
         assert [t["start"] for t in timeouts.answer(tmp_path, 10.0, {"start": 300, "end": 400, "removed": True})] == [100]
         assert [t["start"] for t in timeouts.shown(tmp_path, 10.0)] == [100]
 
     def test_moving_a_bound_replaces_the_timeout_and_what_was_detected(self, tmp_path):
-        (tmp_path / timeouts.DETECTED).write_text("start_frame,end_frame\n100,500\n")
+        (tmp_path / timeouts.DETECTED).write_text("start_frame,end_frame\n100,500\n", encoding="utf-8")
         timeouts.answer(tmp_path, 10.0, {"start": 100, "end": 500, "team": 2})
         timeouts.answer(tmp_path, 10.0, {"start": 200, "end": 500, "team": 2})
         assert timeouts.answer(tmp_path, 10.0, {"start": 200, "end": 450, "team": 2}) == [{"start": 200, "end": 450, "team": 2}]
         assert timeouts.shown(tmp_path, 10.0) == [{"start": 200, "end": 450, "team": 2}]
 
     def test_adding_takes_back_a_removal(self, tmp_path):
-        (tmp_path / timeouts.DETECTED).write_text("start_frame,end_frame\n")
-        (tmp_path / "rallies.csv").write_text("start_frame,end_frame,left,set\n0,100,1,1\n500,600,1,1\n")
+        (tmp_path / timeouts.DETECTED).write_text("start_frame,end_frame\n", encoding="utf-8")
+        (tmp_path / "rallies.csv").write_text("start_frame,end_frame,left,set\n0,100,1,1\n500,600,1,1\n", encoding="utf-8")
         timeouts.answer(tmp_path, 10.0, {"start": 100, "end": 500, "removed": True})
         assert timeouts.answer(tmp_path, 10.0, {"frame": 300}) == [{"start": 100, "end": 500, "team": None}]
 
 
 class TestReadDetected:
     def test_detects_when_an_older_run_left_none(self, tmp_path):
-        (tmp_path / "rallies.csv").write_text("start_frame,end_frame,left,set\n0,100,1,1\n1000,1100,1,1\n")
-        (tmp_path / "players.csv").write_text("frame,track,team,x1,y1,x2,y2,conf,feet_x,feet_y,court_x,court_y\n")
+        (tmp_path / "rallies.csv").write_text("start_frame,end_frame,left,set\n0,100,1,1\n1000,1100,1,1\n", encoding="utf-8")
+        (tmp_path / "players.csv").write_text("frame,track,team,x1,y1,x2,y2,conf,feet_x,feet_y,court_x,court_y\n", encoding="utf-8")
         assert timeouts.read_detected(tmp_path, 10.0) == [(100, 1000)]
         assert (tmp_path / timeouts.DETECTED).exists()
 

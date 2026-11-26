@@ -23,7 +23,7 @@ def labelled(match: str) -> list[tuple[int, int]]:
     """The labelled attacks of the jumps benchmark (both draws) of `match`."""
     out = []
     for name in ("labels.csv", "heldout.csv"):
-        out += [(int(r["frame"]), int(r["track"])) for r in csv.DictReader(open(LABELS / name)) if r["match"] == match]
+        out += [(int(r["frame"]), int(r["track"])) for r in csv.DictReader(open(LABELS / name, encoding="utf-8")) if r["match"] == match]
     return sorted(set(out))
 
 
@@ -37,11 +37,11 @@ def wrist_crop(image: np.ndarray, x: int, y: int) -> tuple[np.ndarray, int, int]
 def main() -> None:
     match = sys.argv[1]
     folder = Path("outputs/matches") / match
-    video = Path(json.loads((folder / "source.json").read_text())["video"])
+    video = Path(json.loads((folder / "source.json").read_text(encoding="utf-8"))["video"])
     out = ROOT / match
     (out / "wrists").mkdir(parents=True, exist_ok=True)
     (out / "jumps").mkdir(exist_ok=True)
-    keys = list(json.loads((folder / "wrists.json").read_text()))
+    keys = list(json.loads((folder / "wrists.json").read_text(encoding="utf-8")))
     done = {"_".join(p.name.split("_")[:4]) for p in (out / "wrists").glob("*.npy")}
     wanted = {}
     for key in keys:

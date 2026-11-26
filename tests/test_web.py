@@ -1,5 +1,6 @@
 import base64
 import json
+import shutil
 import struct
 from pathlib import Path
 
@@ -347,7 +348,7 @@ class TestPeople:
 
     def test_a_touch_goes_to_the_player_the_review_named_by_name_else_by_number(self, tmp_path):
         touches = [{"frame": 5, "team": 2, "identity": 3, "name": "Julie"}, {"frame": 9, "team": 1, "identity": 4, "name": None}, {"frame": 12, "team": 1, "identity": None, "name": None}]
-        (tmp_path / "identity_answers.json").write_text(json.dumps({"touch": touches}))
+        (tmp_path / "identity_answers.json").write_text(json.dumps({"touch": touches}), encoding="utf-8")
 
         assert touched(tmp_path, {(2, 7): {"name": "Julie", "jersey": None}}) == {5: (2, 7), 9: (1, 4), 12: None}
 
@@ -366,9 +367,9 @@ class TestPlayingTime:
 
 class TestBallTrack:
     def test_keeps_the_balls_place_seen_in_the_rallies_every_step(self, tmp_path):
-        (tmp_path / "rallies.csv").write_text("start_frame,end_frame\n20,40\n")
+        (tmp_path / "rallies.csv").write_text("start_frame,end_frame\n20,40\n", encoding="utf-8")
         rows = [f"{f},{int(f != 32)},{f * 10},{f * 5}" for f in range(0, 60, 2)]
-        (tmp_path / "ball.csv").write_text("frame,visible,x,y\n" + "\n".join(rows) + "\n")
+        (tmp_path / "ball.csv").write_text("frame,visible,x,y\n" + "\n".join(rows) + "\n", encoding="utf-8")
 
         # 10 fps: every frame, the rally from 3 frames before its start; frame 32 unseen.
         found = ball_track(tmp_path, (1000, 500), 10.0)
@@ -378,9 +379,9 @@ class TestBallTrack:
         assert found["samples"][:3] == [1.8, 0.18, 0.18] and "fps" not in found
 
     def test_keeps_a_frame_between_two_steps_only_where_it_is_off_their_line(self, tmp_path):
-        (tmp_path / "rallies.csv").write_text("start_frame,end_frame\n100,200\n")
+        (tmp_path / "rallies.csv").write_text("start_frame,end_frame\n100,200\n", encoding="utf-8")
         rows = ["100,1,100,100", "101,1,125,200", "102,1,150,100", "104,1,200,100"]
-        (tmp_path / "ball.csv").write_text("frame,visible,x,y\n" + "\n".join(rows) + "\n")
+        (tmp_path / "ball.csv").write_text("frame,visible,x,y\n" + "\n".join(rows) + "\n", encoding="utf-8")
 
         # 50 fps: a step of 4 frames; frame 101 is 0.2 of the height off the line, frame 102 on it.
         found = ball_track(tmp_path, (1000, 500), 50.0)
@@ -388,8 +389,8 @@ class TestBallTrack:
         assert found["samples"][::3] == [2.0, 2.02, 2.08]
 
     def test_gives_the_seconds_of_the_frames_times_when_it_has_them(self, tmp_path):
-        (tmp_path / "rallies.csv").write_text("start_frame,end_frame\n20,40\n")
-        (tmp_path / "ball.csv").write_text("frame,visible,x,y\n20,1,100,100\n22,1,200,100\n")
+        (tmp_path / "rallies.csv").write_text("start_frame,end_frame\n20,40\n", encoding="utf-8")
+        (tmp_path / "ball.csv").write_text("frame,visible,x,y\n20,1,100,100\n22,1,200,100\n", encoding="utf-8")
 
         found = ball_track(tmp_path, (1000, 500), 10.0, np.arange(100) * 0.1 + 0.05)
 
@@ -413,7 +414,7 @@ class TestCrossed:
 class TestWithAdded:
     def test_a_touch_added_is_a_row_at_the_ball_on_its_team_s_side_its_window_lasting_to_it(self, tmp_path):
         ball = tmp_path / "ball.csv"
-        ball.write_text("frame,visible,x,y\n148,1,10,20\n150,0,,\n153,1,30,40\n260,1,50,60\n")
+        ball.write_text("frame,visible,x,y\n148,1,10,20\n150,0,,\n153,1,30,40\n260,1,50,60\n", encoding="utf-8")
         windows, rows = [(100, 200), (300, 400)], [{"left": "2"}, {"left": ""}]
         typed = [{"frame": "120", "type": "serve"}, {"frame": "330", "type": "serve"}]
         added = [
@@ -441,7 +442,7 @@ class TestWithAdded:
 
     def test_a_touch_goes_for_one_added_near_it_by_the_team_the_review_gave_it(self, tmp_path):
         ball = tmp_path / "ball.csv"
-        ball.write_text("frame,visible,x,y\n")
+        ball.write_text("frame,visible,x,y\n", encoding="utf-8")
         typed = [{"frame": "120", "type": "attack", "team": "2"}]
         added = [{"start": 100, "frame": 126, "team": 2, "type": "dig"}]
 
@@ -455,7 +456,7 @@ class TestWithAdded:
 
     def test_a_row_at_a_frame_the_review_gave_stays_near_an_older_answer(self, tmp_path):
         ball = tmp_path / "ball.csv"
-        ball.write_text("frame,visible,x,y\n")
+        ball.write_text("frame,visible,x,y\n", encoding="utf-8")
         typed = [{"frame": "120", "x": "1", "y": "2", "type": "serve", "side": "left", "track": "", "gap": "", "team": "1", "identity": ""}]
         added = [{"start": 130, "frame": 122, "team": 1, "type": "serve"}, {"start": 130, "frame": 120, "team": 1, "type": "serve"}]
 
@@ -465,7 +466,7 @@ class TestWithAdded:
 
     def test_a_serve_added_after_a_split_stays_in_the_rally_it_names(self, tmp_path):
         ball = tmp_path / "ball.csv"
-        ball.write_text("frame,visible,x,y\n")
+        ball.write_text("frame,visible,x,y\n", encoding="utf-8")
         # A floor row just before the split, in the part before it and in the lead of the one after it.
         typed = [{"frame": "552", "x": "1", "y": "2", "type": "net", "side": "left", "track": "", "gap": "", "team": "1", "identity": ""}]
         added = [{"start": 554, "frame": 556, "team": 1, "type": "serve"}]
@@ -477,7 +478,7 @@ class TestWithAdded:
 
     def test_a_block_and_a_touch_added_right_after_or_before_it_are_two(self, tmp_path):
         ball = tmp_path / "ball.csv"
-        ball.write_text("frame,visible,x,y\n")
+        ball.write_text("frame,visible,x,y\n", encoding="utf-8")
         windows, rows = [(100, 200)], [{"left": "2"}]
 
         def kept(typed, added, **said):
@@ -494,7 +495,7 @@ class TestWithAdded:
 
     def test_a_serve_added_stays_in_the_rally_named_when_the_one_it_replaces_starts_another(self, tmp_path):
         ball = tmp_path / "ball.csv"
-        ball.write_text("frame,visible,x,y\n")
+        ball.write_text("frame,visible,x,y\n", encoding="utf-8")
         # A rally started on the serve the pipeline found, the next one 16 frames later (a lead of 16).
         windows, rows = [(100, 100), (116, 300)], [{"left": "2"}, {"left": "2"}]
         typed = [{"frame": "100", "type": "serve", "team": "2"}, {"frame": "150", "type": "pass", "team": "1"}]
@@ -507,7 +508,7 @@ class TestWithAdded:
 
     def test_two_touches_named_as_different_players_stay_two(self, tmp_path):
         ball = tmp_path / "ball.csv"
-        ball.write_text("frame,visible,x,y\n")
+        ball.write_text("frame,visible,x,y\n", encoding="utf-8")
         typed = [{"frame": "120", "type": "block", "team": "1"}]
         added = [{"start": 100, "frame": 126, "team": 1, "type": "block"}]
 
@@ -521,7 +522,7 @@ class TestWithAdded:
 
     def test_a_playing_fault_added_replaces_no_touch_found_near_it(self, tmp_path):
         ball = tmp_path / "ball.csv"
-        ball.write_text("frame,visible,x,y\n")
+        ball.write_text("frame,visible,x,y\n", encoding="utf-8")
         typed = [{"frame": "120", "type": "dig", "team": "1"}, {"frame": "125", "type": "floor"}]
         added = [{"start": 100, "frame": 110, "team": 1, "type": "fault"}]
 
@@ -571,7 +572,7 @@ class TestWithAdded:
 
     def test_ball_near_takes_the_nearest_place_seen(self, tmp_path):
         ball = tmp_path / "ball.csv"
-        ball.write_text("frame,visible,x,y\n97,1,1,1\n99,0,,\n102,1,2,2\n")
+        ball.write_text("frame,visible,x,y\n97,1,1,1\n99,0,,\n102,1,2,2\n", encoding="utf-8")
 
         assert ball_near(ball, [100, 200], 3) == {100: ("2", "2")}
         assert ball_near(tmp_path / "none.csv", [100], 3) == {}
@@ -618,7 +619,7 @@ class TestMergeRallies:
 class TestBallNear:
     def test_a_ball_frame_near_two_touches_places_both(self, tmp_path):
         ball = tmp_path / "ball.csv"
-        ball.write_text("frame,visible,x,y\n100,1,10,20\n130,0,0,0\n")
+        ball.write_text("frame,visible,x,y\n100,1,10,20\n130,0,0,0\n", encoding="utf-8")
 
         assert ball_near(ball, [95, 105], 10) == {95: ("10", "20"), 105: ("10", "20")}
 
@@ -701,8 +702,8 @@ class TestBrand:
         cv2.imwrite(str(theme / "logo.png"), np.zeros((500, 400, 4), np.uint8))
         (theme / "sponsors").mkdir()
         cv2.imwrite(str(theme / "sponsors" / "sponsor.png"), np.zeros((320, 200, 4), np.uint8))
-        (theme / "sponsors" / "sponsors.json").write_text('[{"name": "Shop", "logo": "sponsor.png"}, {"name": "Bakery"}]')
-        (theme / "brand.json").write_text('{"name": "Club", "logo": "logo.png", "light": {}, "dark": {}}')
+        (theme / "sponsors" / "sponsors.json").write_text('[{"name": "Shop", "logo": "sponsor.png"}, {"name": "Bakery"}]', encoding="utf-8")
+        (theme / "brand.json").write_text('{"name": "Club", "logo": "logo.png", "light": {}, "dark": {}}', encoding="utf-8")
 
         data = club_page("myclub", tmp_path / "site")
 
@@ -722,21 +723,21 @@ class TestMatchData:
         writer = cv2.VideoWriter(str(video), cv2.VideoWriter_fourcc(*"mp4v"), 10, (64, 48))
         writer.write(np.zeros((48, 64, 3), np.uint8))
         writer.release()
-        (tmp_path / "rallies.csv").write_text("start_frame,end_frame\n")
-        (tmp_path / "actions.csv").write_text("frame,x,y,type,side,track\n")
-        (tmp_path / "tracks.csv").write_text("track,team\n")
+        (tmp_path / "rallies.csv").write_text("start_frame,end_frame\n", encoding="utf-8")
+        (tmp_path / "actions.csv").write_text("frame,x,y,type,side,track\n", encoding="utf-8")
+        (tmp_path / "tracks.csv").write_text("track,team\n", encoding="utf-8")
         teams = {"date": "25/10/2026", "teams": [{"name": "A", "colour": " Rouge", "jersey": "#ffffff"}, {"name": "B", "colour": None, "jersey": "#000080"}]}
-        (tmp_path / "teams.json").write_text(json.dumps(teams))
+        (tmp_path / "teams.json").write_text(json.dumps(teams), encoding="utf-8")
 
         data, _ = match_data(tmp_path, video, IDENTITY)
 
         assert data["date"] == "2026-10-25" and [t["colour"] for t in data["teams"]] == [COLOURS["red"], "#000080"]
         teams["date"] = "25 octobre"
-        (tmp_path / "teams.json").write_text(json.dumps(teams))
+        (tmp_path / "teams.json").write_text(json.dumps(teams), encoding="utf-8")
         with pytest.raises(ValueError, match="25 octobre"):
             match_data(tmp_path, video, IDENTITY)
         teams["date"], teams["teams"][0]["colour"] = "2026-10-25", "sparkly"
-        (tmp_path / "teams.json").write_text(json.dumps(teams))
+        (tmp_path / "teams.json").write_text(json.dumps(teams), encoding="utf-8")
         with pytest.raises(ValueError, match="sparkly"):
             match_data(tmp_path, video, IDENTITY)
 
@@ -747,19 +748,19 @@ class TestWriteSite:
         video.write_bytes(b"not a video")
         site = tmp_path / "site"
         (site / "assets").mkdir(parents=True)
-        (site / "assets" / "old.js").write_text("")
+        (site / "assets" / "old.js").write_text("", encoding="utf-8")
 
         write_site({"fps": 25.0, "rallies": [], "name": "Bègles"}, {"step": 3, "samples": [[]]}, video, site, copy=True)
 
-        version = (site / "index.html").read_text().split('src="data.js?v=')[1].split('"')[0]
+        version = (site / "index.html").read_text(encoding="utf-8").split('src="data.js?v=')[1].split('"')[0]
         assert len(version) == 10
         assert not (site / "assets" / "old.js").exists()
-        assert (site / "data.js").read_text() == f'window.MATCH = {{"fps":25.0,"rallies":[],"name":"Bègles","video":"match.mp4","positions":{{"step":3,"every":2500,"files":1,"cm":2}},"contacts":[],"format":1,"v":"{version}"}};\n'
-        assert (site / "positions" / "0.js").read_text() == "window.MATCH_POSITIONS(0,[1,[]]);\n"
+        assert (site / "data.js").read_text(encoding="utf-8") == f'window.MATCH = {{"fps":25.0,"rallies":[],"name":"Bègles","video":"match.mp4","positions":{{"step":3,"every":2500,"files":1,"cm":2}},"contacts":[],"format":1,"v":"{version}"}};\n'
+        assert (site / "positions" / "0.js").read_text(encoding="utf-8") == "window.MATCH_POSITIONS(0,[1,[]]);\n"
 
         write_site({"fps": 25.0, "rallies": []}, None, video, site, copy=True)
 
-        assert f'src="data.js?v={version}"' not in (site / "index.html").read_text()
+        assert f'src="data.js?v={version}"' not in (site / "index.html").read_text(encoding="utf-8")
 
         assert not (site / "positions").exists()
         assert (site / "match.mp4").read_bytes() == b"not a video"
@@ -774,7 +775,7 @@ class TestWriteSite:
 
         write_site({"fps": 25.0, "rallies": []}, None, video, site, copy=True, av1=av1, small=small)
 
-        assert '"video":"match.mp4","av1":"match_av1.mp4","small":"match_720p.mp4"' in (site / "data.js").read_text()
+        assert '"video":"match.mp4","av1":"match_av1.mp4","small":"match_720p.mp4"' in (site / "data.js").read_text(encoding="utf-8")
         assert (site / "match_av1.mp4").read_bytes() == b"av1"
         assert (site / "match_720p.mp4").read_bytes() == b"720p"
         assert (site / "match.mp4").stat().st_mtime == video.stat().st_mtime
@@ -787,12 +788,15 @@ class TestWriteSite:
         other.write_bytes(b"not a video")
         site = tmp_path / "site"
         write_site({"fps": 25.0, "rallies": []}, None, video, site, copy=True)
-        (site / other.name).symlink_to(other)
+        try:
+            (site / other.name).symlink_to(other)
+        except OSError:  # Windows without its developer mode
+            shutil.copy(other, site / other.name)
 
         write_site({"fps": 25.0, "rallies": []}, None, None, site, copy=True)
 
         assert not (site / video.name).exists() and not (site / other.name).is_symlink()
-        assert '"video":null' in (site / "data.js").read_text()
+        assert '"video":null' in (site / "data.js").read_text(encoding="utf-8")
 
 
 class TestFramesIndex:
@@ -844,7 +848,7 @@ class TestPublish:
         publish(tmp_path, tmp_path / "v.mp4", tmp_path / "c.json", "aspom", {"club": 1}, tmp_path / "hosted")
 
         assert built[1] == (False, "aspom", "none", 1, set())
-        assert json.loads((tmp_path / "page.json").read_text())["footage"] == "full"
+        assert json.loads((tmp_path / "page.json").read_text(encoding="utf-8"))["footage"] == "full"
 
     def test_plays_a_lighter_copy_of_the_full_footage_only(self, tmp_path, monkeypatch):
         with pytest.raises(ValueError):
@@ -878,8 +882,8 @@ class TestPublish:
     def test_the_review_keeps_its_page_until_a_file_it_reads_changes(self, tmp_path, monkeypatch):
         match = tmp_path / "matches" / "m"
         (match / "review").mkdir(parents=True)
-        (match / "review" / "data.js").write_text("")
-        (match / "rallies.csv").write_text("a")
+        (match / "review" / "data.js").write_text("", encoding="utf-8")
+        (match / "rallies.csv").write_text("a", encoding="utf-8")
         (tmp_path / "matches" / "other").mkdir()
         video, court = tmp_path / "v.mp4", tmp_path / "c.json"
         monkeypatch.setattr(web, "build", lambda *args, **kwargs: {})
@@ -891,12 +895,12 @@ class TestPublish:
         assert not web.review_kept(match, video, court, "none")
         # What the review server writes beside the page is not read.
         (match / "photos_stale").touch()
-        (match / ".rallies.csv.1.2.tmp").write_text("")
+        (match / ".rallies.csv.1.2.tmp").write_text("", encoding="utf-8")
         assert kept()
-        (match / "rallies.csv").write_text("bb")
+        (match / "rallies.csv").write_text("bb", encoding="utf-8")
         assert not kept()
         web.review_page(match, video, court, "aspom")
-        (tmp_path / "matches" / "other" / likeness.CHOICES).write_text("{}")
+        (tmp_path / "matches" / "other" / likeness.CHOICES).write_text("{}", encoding="utf-8")
         assert not kept()
 
     def test_refuses_pictures_or_a_blurred_opponent_without_a_club(self, tmp_path):
@@ -926,7 +930,7 @@ class TestFilms:
         folder = tmp_path / "films"
         folder.mkdir()
         (folder / "1-ana.mp4").write_bytes(b"film")
-        (folder / "manifest.json").write_text(json.dumps({"Ana": {"hash": "abc", "file": "1-ana.mp4"}}))
+        (folder / "manifest.json").write_text(json.dumps({"Ana": {"hash": "abc", "file": "1-ana.mp4"}}), encoding="utf-8")
         return folder
 
     def test_goes_beside_a_page_with_the_video(self, tmp_path):
@@ -936,7 +940,7 @@ class TestFilms:
         web.write_site({"fps": 25.0, "rallies": [], "people": {"1": {"name": "Ana"}}}, None, video, site, copy=True, films=self.films(tmp_path))
 
         assert (site / "films" / "1-ana.mp4").read_bytes() == b"film"
-        assert '"films":{"Ana":"films/1-ana.mp4?v=abc"}' in (site / "data.js").read_text()
+        assert '"films":{"Ana":"films/1-ana.mp4?v=abc"}' in (site / "data.js").read_text(encoding="utf-8")
 
     def test_never_beside_a_page_without_it_even_where_one_was(self, tmp_path):
         site, video = tmp_path / "site", tmp_path / "match.mp4"
@@ -946,7 +950,7 @@ class TestFilms:
         web.write_site({"fps": 25.0, "rallies": []}, None, None, site, copy=False, films=tmp_path / "films")
 
         assert not (site / "films").exists()
-        assert "films" not in (site / "data.js").read_text()
+        assert "films" not in (site / "data.js").read_text(encoding="utf-8")
 
     def test_leaves_a_film_unchanged_in_place_and_drops_those_gone(self, tmp_path):
         folder, site = self.films(tmp_path), tmp_path / "site"
@@ -963,12 +967,12 @@ class TestFilms:
     def test_deletes_the_film_of_a_renamed_player_and_keeps_the_match_s(self, tmp_path):
         folder, site = self.films(tmp_path), tmp_path / "site"
         (folder / "resume.mp4").write_bytes(b"film")
-        (folder / "manifest.json").write_text(json.dumps({"Ana": {"hash": "abc", "file": "1-ana.mp4"}, "*": {"hash": "def", "file": "resume.mp4"}}))
+        (folder / "manifest.json").write_text(json.dumps({"Ana": {"hash": "abc", "file": "1-ana.mp4"}, "*": {"hash": "def", "file": "resume.mp4"}}), encoding="utf-8")
         site.mkdir()
 
         assert web.copy_films(folder, site, {"Anna"}) == {"*": "films/resume.mp4?v=def"}
         assert not (folder / "1-ana.mp4").exists()
-        assert list(json.loads((folder / "manifest.json").read_text())) == ["*"]
+        assert list(json.loads((folder / "manifest.json").read_text(encoding="utf-8"))) == ["*"]
 
 
 class TestNaturalMotion:
@@ -1166,4 +1170,4 @@ def test_closed_ends_checked_rallies_with_their_last_action():
 def test_the_data_format_is_the_one_the_page_s_types_were_checked_with():
     # web/src/lib/dataFormat.test.ts keeps the data's shape for this format.
     snapshot = Path(web.__file__).parents[2] / "web" / "src" / "lib" / "dataFormat.json"
-    assert json.loads(snapshot.read_text())["format"] == web.FORMAT
+    assert json.loads(snapshot.read_text(encoding="utf-8"))["format"] == web.FORMAT

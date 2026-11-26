@@ -92,7 +92,7 @@ def load(match: Path) -> dict[int, list[str]]:
     path = match / FILE
     found: dict[int, list[str]] = {}
     if path.exists():
-        with open(path) as f:
+        with open(path, encoding="utf-8") as f:
             for r in csv.DictReader(f):
                 found.setdefault(int(r["frame"]), []).extend([r["text"]] if r["text"] else [])
     return found

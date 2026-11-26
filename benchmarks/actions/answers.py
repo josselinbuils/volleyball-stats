@@ -19,10 +19,10 @@ def main() -> None:
     parser.add_argument("match", type=Path, nargs="?", default=ROOT / "outputs/matches/2026-10-29-aspom-1-vs-aspom-2")
     parser.add_argument("--verbose", action="store_true")
     args = parser.parse_args()
-    answers = json.loads((args.match / "identity_answers.json").read_text())
+    answers = json.loads((args.match / "identity_answers.json").read_text(encoding="utf-8"))
     said = {a["frame"]: a["type"] for a in answers["action"] if "type" in a}
     added = {a["frame"] for a in answers["added"]}
-    with open(args.match / "actions.csv") as f:
+    with open(args.match / "actions.csv", encoding="utf-8") as f:
         found = {int(r["frame"]): r["type"] for r in csv.DictReader(f)}
     pairs = Counter((found.get(frame, "added" if frame in added else "none"), kind) for frame, kind in said.items())
     right = sum(n for (a, b), n in pairs.items() if a == b)

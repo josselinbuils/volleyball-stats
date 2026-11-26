@@ -39,7 +39,7 @@ RARE = 0.02
 
 
 def reader():
-    """RapidOCR, on the NVIDIA GPU when onnxruntime has one (onnxruntime-gpu, on Linux). First ASPOM
+    """RapidOCR, on the NVIDIA GPU when onnxruntime has one (onnxruntime-gpu, on Linux and Windows). First ASPOM
     match on the RTX 5080: jerseys 45.1 -> 23.5 min, the same number on 301 of 303 pieces (readings at
     the edge of CONFIDENCE tip over); the scoreboard 6.6 -> 3.1 min, its scores the same."""
     import onnxruntime
@@ -135,7 +135,7 @@ def load(match: Path, rare: bool = False) -> dict[tuple[int, int], int] | None:
     path = match / FILE
     if not path.exists():
         return None
-    with open(path) as f:
+    with open(path, encoding="utf-8") as f:
         read = {(int(r["frame"]), int(r["track"])): int(r["number"]) for r in csv.DictReader(f)}
     if rare:
         return read

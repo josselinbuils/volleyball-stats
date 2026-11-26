@@ -31,7 +31,7 @@ def ask(server, method, path, body=None, headers=None):
 
 class TestServer:
     def test_is_quiet_when_a_page_goes_and_reports_any_other_error(self, server, capsys):
-        for error in (BrokenPipeError(), ConnectionResetError()):
+        for error in (BrokenPipeError(), ConnectionResetError(), ConnectionAbortedError()):
             try:
                 raise error
             except OSError:
@@ -169,7 +169,7 @@ class TestMatchList:
         video.touch()
         court.touch()
         files.write_source(out / name, video, court)
-        (out / name / "teams.json").write_text(json.dumps({"date": date, "teams": [{"name": "A", "colour": None}, {"name": "B", "colour": None}], "scores": ["25-20", None]}))
+        (out / name / "teams.json").write_text(json.dumps({"date": date, "teams": [{"name": "A", "colour": None}, {"name": "B", "colour": None}], "scores": ["25-20", None]}), encoding="utf-8")
         if finished:
             (out / name / "report.md").touch()
 
@@ -211,7 +211,7 @@ class TestMatchList:
         assert list_page("/matches/../secret/data.js", tmp_path, "none") is None
         assert list_page("/matches/m/data.js", tmp_path, "none") is None
         (tmp_path / "m" / "review").mkdir()
-        (tmp_path / "m" / "review" / "data.js").write_text("window.MATCH = {};")
+        (tmp_path / "m" / "review" / "data.js").write_text("window.MATCH = {};", encoding="utf-8")
         assert list_page("/matches/m/data.js", tmp_path, "none")[0] == b"window.MATCH = {};"
         assert list_page("/matches/other/data.js", tmp_path, "none") is None
 
@@ -224,7 +224,7 @@ class TestMatchList:
         list_page("/matches/", out, "none")
         assert json.loads(list_page("/matches/remote.json", out, "none")[0]) == []
         assert not reached
-        (tmp_path / "server.json").write_text("{}")
+        (tmp_path / "server.json").write_text("{}", encoding="utf-8")
         found = json.loads(list_page("/matches/remote.json", out, "none")[0])
 
         assert [(m["path"], m["date"], m["remote"]) for m in found] == [("2026-11-02-x", "2026-11-02", True)]

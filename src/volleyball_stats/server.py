@@ -36,7 +36,7 @@ def save(outputs: Path, body: dict) -> None:
     hosting = {"upload": f"{address}:{folder.rstrip('/')}/", "key": key, "url": url and url.rstrip("/") + "/", "site": SITE}
     files.write_text(outputs / sync.SERVER, json.dumps(hosting, indent=2) + "\n")
     for path in sorted((outputs / "matches").glob(f"*/{matches.PUBLISH}")):
-        given = json.loads(path.read_text())
+        given = json.loads(path.read_text(encoding="utf-8"))
         matches.update_publish(path.parent, **{k: v for k, v in hosting.items() if v and (k != "site" or not given.get("site"))})
 
 
@@ -69,7 +69,7 @@ def listed(outputs: Path) -> list[dict]:
     site = Path(SITE)
     for m in review_server.match_list(outputs / "matches"):
         match = outputs / "matches" / m["path"]
-        given = json.loads((match / files.SOURCE).read_text())
+        given = json.loads((match / files.SOURCE).read_text(encoding="utf-8"))
         config = files.read_json(match / matches.PUBLISH, {})
         if m["path"] in here or not m["ready"] or m.get("missing") or not matches.imported(match, Path(given["video"])):
             continue
@@ -108,11 +108,11 @@ def first_upload(outputs: Path, names: list[str], video: object) -> None:
     none is made; ValueError("video") when one needs it and none is given."""
     for name in names:
         match = outputs / "matches" / name
-        given = json.loads((match / files.SOURCE).read_text())
+        given = json.loads((match / files.SOURCE).read_text(encoding="utf-8"))
         matches.ensure_publish(match, Path(given["video"]), matches.CLUB)
         if not (match / matches.PUBLISH).exists():
             raise LookupError("server")
-        if "video" not in json.loads((match / matches.PUBLISH).read_text()):
+        if "video" not in json.loads((match / matches.PUBLISH).read_text(encoding="utf-8")):
             if not isinstance(video, bool):
                 raise ValueError("video")
             matches.choose(match, video)
@@ -122,7 +122,7 @@ def ssh(found: dict, command: str, timeout: float = 30) -> str:
     """`command` run on the server; RuntimeError with its reason."""
     host, connect = backup.connection(found)
     try:
-        run = subprocess.run([*connect, host, command], capture_output=True, text=True, timeout=timeout)
+        run = subprocess.run([*connect, host, command], capture_output=True, text=True, timeout=timeout, encoding="utf-8", errors="replace")
     except subprocess.TimeoutExpired as error:
         raise RuntimeError("timeout") from error
     if run.returncode:

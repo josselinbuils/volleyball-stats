@@ -1,5 +1,7 @@
 import os
 
+import pytest
+
 from volleyball_stats import backup_remote
 from volleyball_stats.backup import held, kept, listed, newest, rsync_command, signature, sources, stale, vanished
 
@@ -10,7 +12,7 @@ class TestSources:
         match.mkdir(parents=True)
         (tmp_path / "courts").mkdir()
         (tmp_path / "court").mkdir()
-        (tmp_path / "roster.json").write_text("{}")
+        (tmp_path / "roster.json").write_text("{}", encoding="utf-8")
         (tmp_path / "club").mkdir()
         (tmp_path / "feedback").mkdir()
         (tmp_path / "hosted").mkdir()
@@ -22,19 +24,22 @@ class TestSources:
 class TestSignature:
     def test_moves_with_a_file_copied_not_with_one_skipped(self, tmp_path):
         (tmp_path / "site").mkdir()
-        (tmp_path / "answers.json").write_text("a")
+        (tmp_path / "answers.json").write_text("a", encoding="utf-8")
         os.utime(tmp_path / "answers.json", (100, 100))
         first = signature([tmp_path])
         assert first == (1, 100)
-        (tmp_path / "site" / "data.js").write_text("b")
-        (tmp_path / ".answers.json.1.tmp").write_text("c")
+        (tmp_path / "site" / "data.js").write_text("b", encoding="utf-8")
+        (tmp_path / ".answers.json.1.tmp").write_text("c", encoding="utf-8")
         (tmp_path / "photos_stale").touch()
         assert signature([tmp_path]) == first
         os.utime(tmp_path / "answers.json", (200, 200))
         assert signature([tmp_path]) == (1, 200)
 
     def test_a_link_to_the_video_is_not_read(self, tmp_path):
-        (tmp_path / "video.mp4").symlink_to(tmp_path / "gone.mp4")
+        try:
+            (tmp_path / "video.mp4").symlink_to(tmp_path / "gone.mp4")
+        except OSError:
+            pytest.skip("no symbolic links (Windows without its developer mode)")
         assert signature([tmp_path]) == (0, 0.0)
 
 
@@ -81,11 +86,11 @@ class TestRsyncCommand:
 class TestSnapshot:
     def test_the_day_starts_as_the_one_before_hard_linked_once(self, tmp_path):
         (tmp_path / "2026-01-01" / "a").mkdir(parents=True)
-        (tmp_path / "2026-01-01" / "a" / "x").write_text("old")
+        (tmp_path / "2026-01-01" / "a" / "x").write_text("old", encoding="utf-8")
         for _ in range(2):
             backup_remote.snapshot(str(tmp_path), "2026-01-02", "2026-01-01")
         copied = tmp_path / "2026-01-02" / "a" / "x"
-        assert copied.read_text() == "old" and copied.stat().st_ino == (tmp_path / "2026-01-01" / "a" / "x").stat().st_ino
+        assert copied.read_text(encoding="utf-8") == "old" and copied.stat().st_ino == (tmp_path / "2026-01-01" / "a" / "x").stat().st_ino
         assert sorted(p.name for p in tmp_path.iterdir()) == ["2026-01-01", "2026-01-02"]
 
 

@@ -13,7 +13,7 @@ def clip(path, seconds=2, size="640x360"):
 
 def stream(path):
     run = ["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=codec_name,height,r_frame_rate", "-of", "csv=p=0", str(path)]
-    return subprocess.run(run, capture_output=True, text=True, check=True).stdout.strip()
+    return subprocess.run(run, capture_output=True, text=True, check=True, encoding="utf-8", errors="replace").stdout.strip()
 
 
 def test_makes_the_three_copies_on_the_sources_timeline_with_its_sound(tmp_path):
@@ -28,7 +28,7 @@ def test_makes_the_three_copies_on_the_sources_timeline_with_its_sound(tmp_path)
     assert all(video_copies.duration(path) == pytest.approx(2.0, abs=0.1) for path in made.values())
     assert sorted(p.name for p in (tmp_path / "reencoded").iterdir()) == ["m_1440p.mp4", "m_720p.mp4", "m_av1.mp4"]
     sound = ["ffprobe", "-v", "error", "-select_streams", "a", "-show_entries", "stream=codec_name", "-of", "csv=p=0", str(made["light"])]
-    assert subprocess.run(sound, capture_output=True, text=True).stdout.strip() == "aac"
+    assert subprocess.run(sound, capture_output=True, text=True, encoding="utf-8", errors="replace").stdout.strip() == "aac"
 
 
 def test_a_copy_cut_short_does_not_appear(tmp_path, monkeypatch):
@@ -69,7 +69,7 @@ def test_the_copies_play_along_their_map(tmp_path):
     frame = subprocess.run(["ffmpeg", "-v", "error", "-ss", "3.5", "-i", str(made["light"]), "-frames:v", "1", "-vf", "scale=64:36", "-f", "rawvideo", "-pix_fmt", "gray", "-"], capture_output=True, check=True).stdout
     assert np.frombuffer(frame, np.uint8).mean() < 30
     sound = ["ffprobe", "-v", "error", "-select_streams", "a", "-show_entries", "stream=duration", "-of", "csv=p=0", str(made["light"])]
-    assert float(subprocess.run(sound, capture_output=True, text=True).stdout) == pytest.approx(4, abs=0.1)
+    assert float(subprocess.run(sound, capture_output=True, text=True, encoding="utf-8", errors="replace").stdout) == pytest.approx(4, abs=0.1)
 
 
 def test_how_they_were_made_goes_with_its_copy_only(tmp_path):

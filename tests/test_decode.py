@@ -183,3 +183,16 @@ def test_frames_apart_keeps_within_limit_readers(monkeypatch):
     decode.limit_readers(2)
     assert sorted(f for f, _ in decode.frames_apart(Path("x.mp4"), range(40), workers=8)) == list(range(40))
     assert most[0] == 2
+
+
+def test_pipes_frames_both_ways():
+    import sys
+
+    # The pipe of Windows' own, elsewhere Popen's.
+    writer = decode.popen([sys.executable, "-c", "import sys; sys.stdout.buffer.write(sys.stdin.buffer.read()[::-1])"], "stdin", stdout=decode.subprocess.PIPE)
+    writer.stdin.write(b"abc" * 500_000)
+    writer.stdin.close()
+    assert writer.stdout.read() == b"cba" * 500_000 and writer.wait() == 0
+    reader = decode.popen([sys.executable, "-c", "import sys; sys.stdout.buffer.write(bytes(3_000_000))"])
+    frame = decode.np.empty(3_000_000, decode.np.uint8)
+    assert reader.stdout.readinto(frame) == frame.nbytes and reader.stdout.read() == b"" and reader.wait() == 0

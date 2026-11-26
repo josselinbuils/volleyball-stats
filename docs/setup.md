@@ -7,8 +7,9 @@
 ## Requirements
 
 - **A GPU.** Processing picks an NVIDIA GPU (CUDA) first, then Apple Silicon (MPS), then the CPU.
-  Run on an RTX 5080 in WSL2 with Ubuntu and on an Apple M4 Pro (about twice as slow).
-- **NVIDIA under WSL2:** the Windows NVIDIA driver covers WSL2: do not install a Linux driver. The
+  Run on an RTX 5080 in WSL2 with Ubuntu, on the same PC natively on Windows (the same speed) and on an Apple M4 Pro
+  (about twice as slow).
+- **NVIDIA on Windows:** the Windows NVIDIA driver covers WSL2 too: do not install a Linux driver. The
   locked PyTorch is the CUDA 13 build. It supports the RTX 50 series and needs a recent driver (R580
   or later).
 - **Tools:** [`uv`](https://docs.astral.sh/uv/) (it installs Python 3.12+), `ffmpeg` and `git`.
@@ -28,7 +29,8 @@ or `./install.sh` in a copy): Homebrew on a Mac, git, ffmpeg and uv when missing
 (`VOLLEYBALL_STATS_DIR` for another place), `~/.local/bin/volleyball-stats` (`uv run stats`, carrying the PATH the tools were found
 on: a Mac's shortcut opens without Homebrew's). The app's start and the club's changes make the shortcut on that launcher again when
 `shortcut.VERSION` or the icon's colours change (`shortcut.py`), replacing the older `.bat` or `.command`: under WSL2 a
-Windows `.lnk` on the desktop and in the Start menu (`conhost.exe --headless wsl.exe …`: no window, the icon in
+Windows `.lnk` on the desktop and in the Start menu (`conhost.exe --headless wsl.exe …`, natively `cmd.exe` on
+`volleyball-stats.cmd`: no window, the icon in
 `%LOCALAPPDATA%`), on a Mac `Volleyball Stats.app` in `~/Applications` and on the desktop (`LSUIElement`: no Dock icon),
 on Linux an applications menu entry. The icon (`icon.py`) is a volleyball in the club logo's two main colours (else its
 main colour, else blue and yellow), drawn with Pillow for the shortcut and as SVG for the pages' favicon (`icon.favicon`,
@@ -49,6 +51,23 @@ uv sync
 uv run python -c "import torch; print(torch.cuda.is_available(), torch.cuda.get_device_name())"
 uv run python benchmarks/speed.py VIDEO          # projected processing time of a match
 ```
+
+Or natively on Windows, no WSL (no installer yet, so no shortcut: [easier.md](easier.md), step 8), in PowerShell, no admin:
+
+```powershell
+irm https://astral.sh/uv/install.ps1 | iex
+winget install --scope user Gyan.FFmpeg
+winget install --scope user Git.Git
+git clone https://github.com/josselinbuils/volleyball-stats.git; cd volleyball-stats
+uv run stats
+```
+
+Natively, torch comes from PyTorch's CUDA 13 index (`[tool.uv.sources]`) and the OCR from `onnxruntime-gpu` on torch's
+CUDA. What POSIX has and Windows lacks has a stand-in in the code: processes (`procs.py`: `OpenProcess` and its creation
+time, priority classes, the CPU's busy share, jobs apart from the console's Ctrl+C), rsync (`transfer.py`), the frames'
+pipes (`decode.popen`, 1 MB), files replaced while another process reads them (`files.replace` retries). Symlinks need
+Developer Mode, which nothing needs. Its ffmpeg (winget's 9.1) gives pixels slightly unlike Ubuntu's 6.1: the same
+match can come out a rally apart ([easier.md](easier.md), step 7).
 
 On a Mac:
 
@@ -73,7 +92,8 @@ pipeline runs on its rules alone.
   graphics card (NVDEC) when it can, shrinking the frames to 1280 px before the models.
   `sudo apt install ffmpeg` in WSL2 is enough for NVDEC.
 - **Numbers read on the graphics card:** the jerseys and the score board (RapidOCR) run on it through
-  `onnxruntime-gpu`, which `uv sync` installs on Linux in place of `onnxruntime`, with torch's CUDA libraries.
+  `onnxruntime-gpu`, which `uv sync` installs on Linux and Windows in place of `onnxruntime`, with torch's CUDA
+  libraries.
 - **Processing time:** the RTX 5080 ran a 91-minute 4K match end to end in 4 h 15. Tracking, the longest step,
   runs the ball's and the players' models in two threads on an NVIDIA card (37 frames a second); on the M4 Pro in turn,
   7.8 h for 2 hours of 4K 50 fps (Metal aborts on two threads). `speed.py` projects a video's tracking time.

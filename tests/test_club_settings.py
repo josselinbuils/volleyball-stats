@@ -21,7 +21,7 @@ class TestClubSettings:
         found = club_settings.read(folder)
         assert (found["name"], found["url"], found["accent"]) == ("Club", "https://club.fr", "#e30613")
         assert (folder / found["logo"]).exists() and (folder / "sponsors" / found["sponsors"][0]["logo"]).exists()
-        listed = json.loads((folder / "sponsors" / "sponsors.json").read_text())
+        listed = json.loads((folder / "sponsors" / "sponsors.json").read_text(encoding="utf-8"))
         assert listed[1] == {"name": "B", "background": "#000000", "text": "#ffffff"}
         # Kept by name, a new name, the old pictures gone.
         club_settings.save({**found, "name": "Club 2", "sponsors": [{**found["sponsors"][0], "name": "A2"}]}, folder)
@@ -43,13 +43,13 @@ class TestClubSettings:
     def test_makes_the_colours_follow_a_new_accent_only(self, tmp_path):
         folder = tmp_path / "club"
         club_settings.save({"name": "Club", "accent": "#e30613", "header": "#111111"}, folder)
-        data = json.loads((folder / club_settings.FILE).read_text())
+        data = json.loads((folder / club_settings.FILE).read_text(encoding="utf-8"))
         data["light"]["accentText"] = "#123456"
-        (folder / club_settings.FILE).write_text(json.dumps(data))
+        (folder / club_settings.FILE).write_text(json.dumps(data), encoding="utf-8")
         club_settings.save({"name": "Club 2", "accent": "#e30613", "header": "#111111"}, folder)
-        assert json.loads((folder / club_settings.FILE).read_text())["light"]["accentText"] == "#123456"
+        assert json.loads((folder / club_settings.FILE).read_text(encoding="utf-8"))["light"]["accentText"] == "#123456"
         club_settings.save({"name": "Club 2", "accent": "#00ff00", "header": "#111111"}, folder)
-        assert json.loads((folder / club_settings.FILE).read_text())["light"]["accentText"] != "#123456"
+        assert json.loads((folder / club_settings.FILE).read_text(encoding="utf-8"))["light"]["accentText"] != "#123456"
 
     def test_refuses_what_it_cannot_show(self, tmp_path):
         for body in ({"name": "", "accent": "#000000", "header": "#000000"}, {"name": "A", "accent": "red", "header": "#000000"}, {"name": "A", "url": "javascript:x", "accent": "#000000", "header": "#000000"}, {"name": "A", "accent": "#000000", "header": "#000000", "logo": "../x.png"}):
@@ -70,7 +70,7 @@ class TestClubSettings:
     def test_moves_the_club_kept_as_brand(self, tmp_path):
         old = tmp_path / "brand"
         old.mkdir()
-        (old / "brand.json").write_text("{}")
+        (old / "brand.json").write_text("{}", encoding="utf-8")
         club_settings.migrate(tmp_path / "club", old)
         assert not old.exists() and (tmp_path / "club" / club_settings.FILE).exists()
 

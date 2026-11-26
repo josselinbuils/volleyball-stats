@@ -72,7 +72,7 @@ CANDIDATES = {"angle": angle, "delta_v": delta_v, "residual": residual}
 def load_ground_truth(path: Path) -> list[dict]:
     """One dict per rally: start, end, contacts {frame: type}, net [frames]."""
     rallies: dict[str, dict] = {}
-    with open(path) as f:
+    with open(path, encoding="utf-8") as f:
         for row in csv.DictReader(f):
             rally = rallies.setdefault(row["rally"], {"contacts": {}, "net": []})
             frame = int(row["frame"])

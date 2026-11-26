@@ -25,7 +25,7 @@ from volleyball_stats.court import Calibration  # noqa: E402
 
 def run(name: str, npz: Path, combos: list[tuple[str, ...]]) -> None:
     d = play.match_dir(name)
-    source = json.loads((d / "source.json").read_text())
+    source = json.loads((d / "source.json").read_text(encoding="utf-8"))
     video, cal = Path(source["video"]), Calibration.load(Path(source["court"]))
     fps = cv2.VideoCapture(str(video)).get(cv2.CAP_PROP_FPS)
     net_x = float(cal.to_image(np.array([[0.0, 0.0]]))[0, 0])

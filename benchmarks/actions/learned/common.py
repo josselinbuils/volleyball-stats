@@ -19,7 +19,7 @@ SIDE = {"left": 0, "right": 1}
 
 def load(match: str) -> dict:
     """The match's contacts: labels y (-1 for a type outside LABELS), rules' type index, tabular features."""
-    table = json.loads((OUT / match / "table.json").read_text())["contacts"]
+    table = json.loads((OUT / match / "table.json").read_text(encoding="utf-8"))["contacts"]
     y = np.array([LABELS.index(t["label"]) if t["label"] in LABELS else -1 for t in table])
     rules = np.array([LABELS.index(t["rules"]) for t in table])
     return {"match": match, "table": table, "y": y, "rules": rules, "tab": tabular(table), "clips": OUT / match / "clips.npy"}

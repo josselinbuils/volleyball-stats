@@ -38,7 +38,7 @@ def pooled_runs(outputs: Path) -> list[dict]:
     it adding its answers rather than starting a new curve."""
     runs = []
     for path in sorted(outputs.glob("*/learn.json")):
-        runs += [(run["time"], path.parent.name, run) for run in json.loads(path.read_text())]
+        runs += [(run["time"], path.parent.name, run) for run in json.loads(path.read_text(encoding="utf-8"))]
     latest: dict[str, dict] = {}
     out = []
     for _, name, run in sorted(runs, key=lambda r: r[:2]):
@@ -55,7 +55,7 @@ def pooled_runs(outputs: Path) -> list[dict]:
 def last_comparison(outputs: Path) -> dict | None:
     """The scores of the last update's runs (learn.json, its `update`; the newest run alone before 14 Nov 2026) and of
     the results they replaced, on the same answers, summed over its matches; None if it did not measure them."""
-    lasts = [runs[-1] for path in sorted(outputs.glob("*/learn.json")) if (runs := json.loads(path.read_text()))]
+    lasts = [runs[-1] for path in sorted(outputs.glob("*/learn.json")) if (runs := json.loads(path.read_text(encoding="utf-8")))]
     if not lasts:
         return None
     newest = max(lasts, key=lambda r: r["time"])
@@ -81,7 +81,7 @@ COMMENTS = "rally_comments.json"
 
 def read_comments(match: Path) -> dict[int, str]:
     path = match / COMMENTS
-    return {int(k): v for k, v in json.loads(path.read_text()).items()} if path.exists() else {}
+    return {int(k): v for k, v in json.loads(path.read_text(encoding="utf-8")).items()} if path.exists() else {}
 
 
 def write_comments(match: Path, comments: dict[int, str]) -> None:
@@ -214,7 +214,7 @@ def applied_too(match: Path, entries: list[dict]) -> None:
     computed = match / APPLIED
     if not computed.exists():
         return
-    then = json.loads(computed.read_text())
+    then = json.loads(computed.read_text(encoding="utf-8"))
     answers = then.setdefault("answers", {})
     for kind in KINDS:
         said = [x for e in entries for x in e.get(kind, [])]

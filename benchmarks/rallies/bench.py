@@ -36,7 +36,7 @@ Rally = tuple[int, int]
 
 
 def load_ground_truth(path: Path) -> list[Rally]:
-    with open(path) as f:
+    with open(path, encoding="utf-8") as f:
         return [(int(r["start_frame"]), int(r["end_frame"])) for r in csv.DictReader(f)]
 
 
@@ -147,7 +147,7 @@ def main() -> None:
             "combined": segment(track, whistle_times, fps),
         }
         if more:
-            with open(more[0]) as f:
+            with open(more[0], encoding="utf-8") as f:
                 players = [(int(r["frame"]), float(r["court_x"]), float(r["court_y"])) for r in csv.DictReader(f)]
             cal = Calibration.load(more[1])
             candidates["served"] = [(s, e) for s, e, _ in served(players, track, whistle_times, fps, cal)]

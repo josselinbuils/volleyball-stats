@@ -31,7 +31,7 @@ LABELS = ["serve", "pass", "dig", "set", "attack", "block", "relance", "floor", 
 
 
 def rows(path: Path) -> list[dict]:
-    with open(path) as f:
+    with open(path, encoding="utf-8") as f:
         return list(csv.DictReader(f))
 
 
@@ -119,7 +119,7 @@ def build_clips(match: str, table: list[dict], video: Path) -> None:
     path, progress = out / "clips.npy", out / "clips.progress"
     resume = path.exists() and progress.exists()
     clips = np.lib.format.open_memmap(path, mode="r+" if resume else "w+", dtype=np.uint8, shape=(len(table), 16, SIZE, SIZE, 3))
-    first = int(progress.read_text()) if resume else 0
+    first = int(progress.read_text(encoding="utf-8")) if resume else 0
     order = sorted(range(len(table)), key=lambda i: table[i]["frame"])
     for start in range(first, len(order), 60):
         chunk = order[start : start + 60]
@@ -142,10 +142,10 @@ def build_clips(match: str, table: list[dict], video: Path) -> None:
                 time.sleep(10)
         else:
             raise RuntimeError("decoding failed")
-        progress.write_text(str(start + 60))
+        progress.write_text(str(start + 60), encoding="utf-8")
         print("clips", min(start + 60, len(order)), "/", len(order), flush=True)
     clips.flush()
-    (out / "clips.done").write_text("ok")
+    (out / "clips.done").write_text("ok", encoding="utf-8")
 
 
 def build_pose(match: str, table: list[dict]) -> None:
@@ -175,9 +175,9 @@ def build_pose(match: str, table: list[dict]) -> None:
 def main() -> None:
     match = next(m for m in sorted(p.name for p in BASE.iterdir()) if m.startswith(sys.argv[1]))
     run = BASE / match / "runs" / (sys.argv[2] if len(sys.argv) > 2 else "players-near") / match
-    src = json.loads((ROOT / "outputs/matches" / match / "source.json").read_text())
+    src = json.loads((ROOT / "outputs/matches" / match / "source.json").read_text(encoding="utf-8"))
     video, calibration = ROOT / src["video"], Calibration.load(ROOT / src["court"])
-    truth = json.loads((BASE / match / "truth.json").read_text())
+    truth = json.loads((BASE / match / "truth.json").read_text(encoding="utf-8"))
     fps = truth["fps"]
     out = OUT / match
     out.mkdir(parents=True, exist_ok=True)
@@ -188,7 +188,7 @@ def main() -> None:
         players.setdefault(int(r["frame"]), {})[r["track"]] = np.array([float(r[k]) for k in ("x1", "y1", "x2", "y2")])
     width, height = decode.size(video)
     crop_boxes(table, players, width, height)
-    (out / "table.json").write_text(json.dumps({"match": match, "fps": fps, "offsets": OFFSETS, "contacts": table}))
+    (out / "table.json").write_text(json.dumps({"match": match, "fps": fps, "offsets": OFFSETS, "contacts": table}), encoding="utf-8")
     print(match, len(table), "contacts;", {k: sum(t["label"] == k for t in table) for k in sorted({t["label"] for t in table})}, flush=True)
     build_clips(match, table, video)
     print("clips done", flush=True)

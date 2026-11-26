@@ -20,7 +20,7 @@ def labels() -> list[tuple[int, str, str | None]]:
     """(serve frame, serving end, winning end) of each labelled rally."""
     out = []
     for span in SPANS:
-        with open(ROOT / "benchmarks/rallies/ground_truth" / f"{span}.csv") as f:
+        with open(ROOT / "benchmarks/rallies/ground_truth" / f"{span}.csv", encoding="utf-8") as f:
             rows = [(int(r["start_frame"]), "left" if r["note"].startswith("left serves") else "right") for r in csv.DictReader(f)]
         out += [(start, end, after[1] if after else None) for (start, end), after in zip(rows, [*rows[1:], None])]
     return out
@@ -31,9 +31,9 @@ def main() -> None:
     parser.add_argument("match", type=Path, nargs="?", default=ROOT / "outputs/matches/2026-10-29-aspom-1-vs-aspom-2")
     parser.add_argument("--verbose", action="store_true")
     args = parser.parse_args()
-    with open(args.match / "rallies.csv") as f:
+    with open(args.match / "rallies.csv", encoding="utf-8") as f:
         windows = list(csv.DictReader(f))
-    with open(args.match / "points.csv") as f:
+    with open(args.match / "points.csv", encoding="utf-8") as f:
         points = {int(r["start_frame"]): r for r in csv.DictReader(f)}
     found = served = won = asked = 0
     truth = labels()

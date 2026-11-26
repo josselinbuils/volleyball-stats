@@ -28,8 +28,9 @@ match's commentary voice is made. None is ticked at first (the owner's rule, 15 
 
 The Site tab's "Serveur" card, for the uploads, the video's password, the viewers' reports and the backups, needs a Linux
 server reachable by SSH with a key, as root (the backups go to
-`/root/backups/volleyball-stats`, `backup.ROOT`; the video's password reloads nginx), and rsync on both sides: Windows (WSL2)
-and macOS have both. Tested against nginx 1.24 (Ubuntu 24.04's) unprivileged, with [`nginx.conf`](nginx.conf): the video
+`/root/backups/volleyball-stats`, `backup.ROOT`; the video's password reloads nginx), and rsync there; here
+rsync, else (native Windows) `transfer.py`, rsync's options, filters, listing and exit codes the app uses in the standard
+library, the server's python3 (3.8 or later) its other side through ssh (`test_transfer.py` runs both on each case). Tested against nginx 1.24 (Ubuntu 24.04's) unprivileged, with [`nginx.conf`](nginx.conf): the video
 refused without its key then opened with it (`matches.protected`, `key_command`, `opens`), a report logged, a gzip copy sent.
 
 1. On the server, for a site at `https://stats.example.org/` in `/srv/volleyball/site/`:

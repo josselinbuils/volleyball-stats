@@ -43,7 +43,7 @@ def wrists(model: str, clips: bool) -> dict:
     data = []
     for match in MATCHES:
         folder = Path("outputs/matches") / match
-        source = json.loads((folder / "source.json").read_text())
+        source = json.loads((folder / "source.json").read_text(encoding="utf-8"))
         shutil.copy(cache_of(model, match, "wrists"), scratch / f"{match}_wrists.json")
         part = rk.from_match(folder, Path(source["video"]), Path(source["court"]))
         data += part
@@ -68,9 +68,9 @@ def wrists(model: str, clips: bool) -> dict:
 def jump_scores(model: str, heldout: bool) -> dict:
     out = {}
     for match in MATCHES:
-        labels = [r for r in __import__("csv").DictReader(open(jb.HELDOUT if heldout else jb.LABELS)) if r["match"] == match]
+        labels = [r for r in __import__("csv").DictReader(open(jb.HELDOUT if heldout else jb.LABELS, encoding="utf-8")) if r["match"] == match]
         folder = Path("outputs/matches") / match
-        source = json.loads((folder / "source.json").read_text())
+        source = json.loads((folder / "source.json").read_text(encoding="utf-8"))
         attacks = [(int(r["frame"]), int(r["track"])) for r in labels]
         tracks = jumps.read_tracks(folder / "players.csv", {t for _, t in attacks})
         poses = jumps.pose_all(Path(source["video"]), attacks, {(f, t): tracks[t] for f, t in attacks}, FPS, cache_of(model, match, "jumps"))
@@ -87,15 +87,15 @@ def relance_scores(model: str) -> dict:
     out = {}
     for match in MATCHES:
         folder = Path("outputs/matches") / match
-        truth = json.loads(Path(f"outputs/benchmarks/corrections/{match}/truth.json").read_text())
+        truth = json.loads(Path(f"outputs/benchmarks/corrections/{match}/truth.json").read_text(encoding="utf-8"))
         touches = sorted((t["frame"], t["type"]) for r in truth["rallies"] for t in r["touches"])
         frames = np.array([f for f, _ in touches])
         cache = cache_of(model, match, "relances")
-        kept = json.loads(cache.read_text())
+        kept = json.loads(cache.read_text(encoding="utf-8"))
         rows = [r for r in web.read_csv(folder / "actions.csv") if r["type"] in ("attack", "relance") and str(int(r["frame"])) in kept]
         typed = [(int(r["frame"]), int(r["x"]), int(r["y"]), "attack", r["side"]) for r in rows]
         actions.decode.frames_at = lambda video, wanted: iter(())  # the cache holds the frames the rule reads
-        marked = actions.mark_relances(Path(json.loads((folder / "source.json").read_text())["video"]), typed, FPS, cache)
+        marked = actions.mark_relances(Path(json.loads((folder / "source.json").read_text(encoding="utf-8"))["video"]), typed, FPS, cache)
         got = {t[0]: t[3] for t in marked}
         right = wrong = false_relance = missed_relance = 0
         for frame, kind in got.items():
@@ -138,7 +138,7 @@ def main() -> None:
     path = POSES / args.model
     path.mkdir(parents=True, exist_ok=True)
     tag = f"_conf{args.conf}_k{args.keypoint_conf}" if args.conf or args.keypoint_conf else ""
-    (path / f"scores{tag}.json").write_text(json.dumps(result, indent=1))
+    (path / f"scores{tag}.json").write_text(json.dumps(result, indent=1), encoding="utf-8")
 
 
 if __name__ == "__main__":

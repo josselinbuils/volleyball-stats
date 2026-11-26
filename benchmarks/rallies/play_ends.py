@@ -31,17 +31,17 @@ SPANS = {"26-36": ("first_match_26_36", 1560, 2160), "50-60": ("first_match_50_6
 def windows(name: str) -> tuple[list[tuple[int, int]], float, list]:
     cache = play.OUT / name / "windows.json"
     if cache.exists():
-        d = json.loads(cache.read_text())
+        d = json.loads(cache.read_text(encoding="utf-8"))
         return [tuple(w) for w in d["windows"]], d["fps"], d["whistles"]
     d = play.match_dir(name)
-    source = json.loads((d / "source.json").read_text())
+    source = json.loads((d / "source.json").read_text(encoding="utf-8"))
     video, cal = Path(source["video"]), Calibration.load(Path(source["court"]))
     fps = cv2.VideoCapture(str(video)).get(cv2.CAP_PROP_FPS)
-    with open(d / "players.csv") as f:
+    with open(d / "players.csv", encoding="utf-8") as f:
         players = [(int(r["frame"]), float(r["court_x"]), float(r["court_y"])) for r in csv.DictReader(f)]
     whistle_times = rallies.whistles(rallies.read_audio(video))
     out = rally_windows(rallies.load_track(d / "ball.csv"), whistle_times, fps, float(cal.to_image(np.array([[0.0, 0.0]]))[0, 0]), cal, players)[0]
-    cache.write_text(json.dumps({"windows": out, "fps": fps, "whistles": whistle_times}))
+    cache.write_text(json.dumps({"windows": out, "fps": fps, "whistles": whistle_times}), encoding="utf-8")
     return out, fps, whistle_times
 
 
@@ -125,7 +125,7 @@ def checked_scores(name: str, tag: str, **kw) -> None:
     from volleyball_stats import attribution, learn, match, review_answers, web
 
     d = play.match_dir(name)
-    source = json.loads((d / "source.json").read_text())
+    source = json.loads((d / "source.json").read_text(encoding="utf-8"))
     video, cal = Path(source["video"]), Calibration.load(Path(source["court"]))
     fps = cv2.VideoCapture(str(video)).get(cv2.CAP_PROP_FPS)
     net_x = float(cal.to_image(np.array([[0.0, 0.0]]))[0, 0])

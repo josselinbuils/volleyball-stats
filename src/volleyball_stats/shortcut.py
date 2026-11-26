@@ -1,4 +1,4 @@
-"""The app's shortcut, opening it with no terminal: under WSL2 Windows' (desktop and Start menu), a Mac's app
+"""The app's shortcut, opening it with no terminal: Windows' (desktop and Start menu, the app on Windows or in WSL2), a Mac's app
 (Applications and desktop), Linux's applications menu, its icon in the club's colours (icon.py). Made again by the
 app's start and the club's changes when its VERSION or colours change, in place of the older ones (a .bat, a .command),
 when install.sh's launcher is there.
@@ -18,7 +18,8 @@ from volleyball_stats import club_settings, doctor, icon
 NAME = "Volleyball Stats"
 # Bumped when the shortcut changes: each machine's is made again once.
 VERSION = 3
-LAUNCHER = Path.home() / ".local/bin/volleyball-stats"
+# install.sh's, or on Windows the installer's (`uv run stats` in the code's folder).
+LAUNCHER = Path.home() / (".local/bin/volleyball-stats.cmd" if os.name == "nt" else ".local/bin/volleyball-stats")
 MADE = Path.home() / ".local/share/volleyball-stats/shortcut"
 BUNDLE_ID = "io.github.josselinbuils.volleyball-stats"
 ONE_AT_A_TIME = threading.Lock()
@@ -29,10 +30,21 @@ def ps_quote(text: str) -> str:
     return "'" + text.replace("'", "''") + "'"
 
 
-def windows_command(distro: str, launcher: Path) -> tuple[str, str]:
-    """The program and arguments a Windows shortcut starts: the launcher in `distro`, under a console that shows no
-    window (the app is in the browser, Quitter stops it)."""
+def windows_command(distro: str | None, launcher: Path) -> tuple[str, str]:
+    """The program and arguments a Windows shortcut starts: the launcher, in `distro` under WSL2, under a console that
+    shows no window (the app is in the browser, Quitter stops it)."""
+    if distro is None:
+        return "conhost.exe", f'--headless cmd.exe /c "{launcher}"'
     return "conhost.exe", f'--headless wsl.exe -d {distro} -- "{launcher}"'
+
+
+def native() -> bool:
+    return doctor.system() == "windows"
+
+
+def local_path(windows: str) -> Path:
+    """A Windows path as this process reads it."""
+    return Path(windows) if native() else wsl_path(windows)
 
 
 def icon_name(pair: tuple[str, str], suffix: str) -> str:
@@ -42,15 +54,15 @@ def icon_name(pair: tuple[str, str], suffix: str) -> str:
 
 def make_windows(pair: tuple[str, str]) -> list[Path]:
     """The shortcut on Windows' desktop and in its Start menu, its icon copied beside Windows' apps' data."""
-    distro = os.environ.get("WSL_DISTRO_NAME")
-    if not distro:
+    distro = None if native() else os.environ.get("WSL_DISTRO_NAME")
+    if not distro and not native():
         return []
     script = "foreach ($f in 'Desktop', 'Programs', 'LocalApplicationData') { [Environment]::GetFolderPath($f) }; $env:SystemRoot"
     found = run_powershell(script).splitlines()
     if len(found) != 4 or not all(found):
         return []
     desktop, programs, local, root = found
-    icon_dir = wsl_path(local) / NAME
+    icon_dir = local_path(local) / NAME
     for old in icon_dir.glob("volleyball-stats*.ico"):
         old.unlink()
     icon.write(pair, icon_dir / icon_name(pair, ".ico"))
@@ -65,19 +77,19 @@ def make_windows(pair: tuple[str, str]) -> list[Path]:
             for link in links
         )
     )
-    old = wsl_path(desktop) / f"{NAME}.bat"
+    old = local_path(desktop) / f"{NAME}.bat"
     old.unlink(missing_ok=True)
-    return [wsl_path(link) for link in links if wsl_path(link).exists()]
+    return [local_path(link) for link in links if local_path(link).exists()]
 
 
 def run_powershell(script: str) -> str:
     """What `script` prints, from Windows' PowerShell."""
-    done = subprocess.run(["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", script], cwd="/mnt/c", capture_output=True, text=True, stdin=subprocess.DEVNULL, timeout=60)
+    done = subprocess.run(["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", script], cwd=None if native() else "/mnt/c", capture_output=True, text=True, stdin=subprocess.DEVNULL, timeout=60, encoding="utf-8", errors="replace")
     return done.stdout.replace("\r", "").strip()
 
 
 def wsl_path(windows: str) -> Path:
-    return Path(subprocess.run(["wslpath", "-u", windows], capture_output=True, text=True).stdout.strip())
+    return Path(subprocess.run(["wslpath", "-u", windows], capture_output=True, text=True, encoding="utf-8", errors="replace").stdout.strip())
 
 
 def info_plist() -> bytes:
@@ -110,7 +122,7 @@ def make_mac(pair: tuple[str, str]) -> list[Path]:
         (app / "Contents/Info.plist").write_bytes(info_plist())
         icon.write(pair, app / "Contents/Resources/volleyball-stats.icns")
         program = app / "Contents/MacOS/volleyball-stats"
-        program.write_text(f'#!/bin/sh\nexec "{LAUNCHER}"\n')
+        program.write_text(f'#!/bin/sh\nexec "{LAUNCHER}"\n', encoding="utf-8")
         program.chmod(0o755)
         made.append(app)
     (home / "Desktop" / f"{NAME}.command").unlink(missing_ok=True)
@@ -128,18 +140,18 @@ def make_linux(pair: tuple[str, str]) -> list[Path]:
     picture = icon.write(pair, MADE.parent / icon_name(pair, ".png"))
     entry = Path.home() / ".local/share/applications/volleyball-stats.desktop"
     entry.parent.mkdir(parents=True, exist_ok=True)
-    entry.write_text(desktop_entry(picture))
+    entry.write_text(desktop_entry(picture), encoding="utf-8")
     return [entry]
 
 
 def update_launcher() -> None:
     """install.sh's launcher of before `stats`, made to start it."""
     try:
-        text = LAUNCHER.read_text()
+        text = LAUNCHER.read_text(encoding="utf-8")
     except OSError:
         return
     if " run volleyball-stats " in text:
-        LAUNCHER.write_text(text.replace(" run volleyball-stats ", " run stats "))
+        LAUNCHER.write_text(text.replace(" run volleyball-stats ", " run stats "), encoding="utf-8")
 
 
 def key(pair: tuple[str, str]) -> str:
@@ -153,16 +165,16 @@ def make(pair: tuple[str, str] | None = None) -> list[Path]:
         return []
     pair = pair or icon.colours(club_settings.read())
     with ONE_AT_A_TIME:
-        made = {"wsl": make_windows, "mac": make_mac, "linux": make_linux}[doctor.system()](pair)
+        made = {"wsl": make_windows, "windows": make_windows, "mac": make_mac, "linux": make_linux}[doctor.system()](pair)
         if made:
             MADE.parent.mkdir(parents=True, exist_ok=True)
-            MADE.write_text(key(pair))
+            MADE.write_text(key(pair), encoding="utf-8")
     return made
 
 
 def made(pair: tuple[str, str]) -> bool:
     try:
-        return MADE.read_text().strip() == key(pair)
+        return MADE.read_text(encoding="utf-8").strip() == key(pair)
     except OSError:
         return False
 

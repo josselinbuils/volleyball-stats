@@ -82,7 +82,7 @@ def concat_list(chapters: list[Chapter], start: float | None, end: float | None)
         begin, at = at, at + chapter.duration
         if (start and at <= start) or (end and begin >= end):
             continue
-        lines.append("file '" + str(chapter.path.resolve()).replace("'", "'\\''") + "'")
+        lines.append("file '" + chapter.path.resolve().as_posix().replace("'", "'\\''") + "'")
         if start and begin < start:
             lines.append(f"inpoint {start - begin:.3f}")
         if end and at > end:
@@ -118,7 +118,7 @@ TIMINGS, TOOK = "import_timings.json", {"copy": 0.09, "index": 0.02}
 def copied(command: list[str], expected: float, stages: jobs.Stages) -> None:
     """Runs ffmpeg's `command`, telling the copy's share done from its time over the `expected` seconds of video, then
     the index's move by its last duration (`stages`)."""
-    process = subprocess.Popen([*command[:1], "-progress", "pipe:1", "-nostats", *command[1:]], stdout=subprocess.PIPE, text=True)
+    process = subprocess.Popen([*command[:1], "-progress", "pipe:1", "-nostats", *command[1:]], stdout=subprocess.PIPE, text=True, encoding="utf-8", errors="replace")
     stages.start("copy")
     for line in process.stdout:
         key, _, value = line.strip().partition("=")
@@ -137,7 +137,7 @@ def join(chapters: list[Chapter], target: Path, start: float | None, end: float 
     step's last duration kept in `timings`); `target` only appears once whole."""
     part = target.with_name(f"{target.stem}.part.mp4")
     listing = target.with_name(f"{target.stem}.part.txt")
-    listing.write_text(concat_list(chapters, start, end))
+    listing.write_text(concat_list(chapters, start, end), encoding="utf-8")
     total = sum(c.duration for c in chapters)
     length = min(end or total, total) - (start or 0.0)
     try:

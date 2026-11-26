@@ -170,7 +170,7 @@ def read_sightings(path: Path, calibration: Calibration, frames: list[tuple[int,
     for first, last in frames:
         wanted[max(first, 0) : last + 1] = True
     found, pixels = [], []
-    with open(path) as f:
+    with open(path, encoding="utf-8") as f:
         next(f)
         for line in f:
             frame, visible, x, y = line.strip().split(",")

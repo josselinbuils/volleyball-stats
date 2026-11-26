@@ -18,7 +18,7 @@ from heads import cross_predict
 def ball_path(d: dict) -> np.ndarray:
     """The ball in the crop's units (x, y, seen) at each of the clip's 16 frames."""
     run = BASE / d["match"] / "runs" / os.environ.get("ACT_RUN", "players-near") / d["match"]
-    with open(run / "ball.csv") as f:
+    with open(run / "ball.csv", encoding="utf-8") as f:
         ball = {int(r["frame"]): (float(r["x"]), float(r["y"])) for r in csv.DictReader(f) if r["visible"] == "1"}
     offsets = np.array(OFFSETS(d))
     out = np.zeros((len(d["table"]), 16, 3), np.float32)

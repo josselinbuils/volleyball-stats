@@ -21,7 +21,7 @@ def main(match: Path, court: Path) -> None:
     P = projection(calibration)
     assert P is not None
     print("camera x, y, height:", camera_place(P).round(2))
-    text = (match / "site" / "data.js").read_text()
+    text = (match / "site" / "data.js").read_text(encoding="utf-8")
     data = json.loads(text[text.index("{") : text.rindex("}") + 1])
     rallies = defaultdict(list)
     for c in data["contacts"]:

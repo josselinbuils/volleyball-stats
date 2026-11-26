@@ -193,11 +193,11 @@ class Calibration:
 
     def save(self, path: Path) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps({**vars(self), "homography": self.homography.tolist()}, indent=2))
+        path.write_text(json.dumps({**vars(self), "homography": self.homography.tolist()}, indent=2), encoding="utf-8")
 
     @classmethod
     def load(cls, path: Path) -> "Calibration":
-        data = json.loads(path.read_text())
+        data = json.loads(path.read_text(encoding="utf-8"))
         return cls(**{**data, "homography": np.array(data["homography"])})
 
     def with_lens(self, size: tuple[int, int]) -> "Calibration":
@@ -692,11 +692,11 @@ def main() -> None:
         points = click_landmarks(background(args.video))
         out = args.out or Path("outputs/court") / f"{args.video.stem}_clicks.json"
         out.parent.mkdir(parents=True, exist_ok=True)
-        out.write_text(json.dumps(points, indent=2))
+        out.write_text(json.dumps(points, indent=2), encoding="utf-8")
         print(f"{len(points)} landmarks -> {out}")
     elif args.command == "fit":
-        clicks = {n: tuple(p) for n, p in json.loads(args.clicks.read_text()).items()}
-        lens = json.loads(args.lens.read_text()) if args.lens else None
+        clicks = {n: tuple(p) for n, p in json.loads(args.clicks.read_text(encoding="utf-8")).items()}
+        lens = json.loads(args.lens.read_text(encoding="utf-8")) if args.lens else None
         image = cv2.imread(str(args.background)) if args.background and args.background.exists() else background(args.video)
         if lens and lens.get("size") and list(lens["size"]) != [image.shape[1], image.shape[0]]:
             print(f"The lens was calibrated on {lens['size'][0]}x{lens['size'][1]} frames, the video is {image.shape[1]}x{image.shape[0]}: fitted without it")

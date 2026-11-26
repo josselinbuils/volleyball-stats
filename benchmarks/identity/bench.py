@@ -32,7 +32,7 @@ from volleyball_stats.players import Row
 
 
 def truth(clip: str) -> list[dict]:
-    with open(f"benchmarks/identity/ground_truth/{clip}.csv") as f:
+    with open(f"benchmarks/identity/ground_truth/{clip}.csv", encoding="utf-8") as f:
         return [r for r in csv.DictReader(f) if r["player"] != "?"]
 
 
@@ -127,7 +127,7 @@ def evaluate(clip: str, squad=None, quiet: bool = False, tracks_only: bool = Fal
     video, match = Path(f"data/benchmarks/{clip}.mp4"), Path(f"outputs/benchmarks/{clip}")
     fps = cv2.VideoCapture(str(video)).get(cv2.CAP_PROP_FPS)
     rows = read_players(match / "players.csv")
-    with open(match / "rallies.csv") as f:
+    with open(match / "rallies.csv", encoding="utf-8") as f:
         rallies = list(csv.DictReader(f))
     windows = [(int(r["start_frame"]), int(r["end_frame"])) for r in rallies]
     left = [int(r["left"]) if r.get("left") else None for r in rallies]

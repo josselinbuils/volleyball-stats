@@ -35,9 +35,9 @@ def differences(before, after, at: str = "") -> list[str]:
 if __name__ == "__main__":
     now = state()
     if sys.argv[1:] == ["before"]:
-        BEFORE.write_text(json.dumps(now, indent=1) + "\n")
+        BEFORE.write_text(json.dumps(now, indent=1) + "\n", encoding="utf-8")
         print(f"{len(now['matches'])} matches, {len(now['listed'])} in the Site tab: {BEFORE}")
         sys.exit()
-    found = differences(json.loads(BEFORE.read_text()), now)
+    found = differences(json.loads(BEFORE.read_text(encoding="utf-8")), now)
     print("\n".join(found) or f"same online state ({len(now['matches'])} matches)")
     sys.exit(1 if found else 0)

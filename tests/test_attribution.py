@@ -183,7 +183,7 @@ class TestByWrists:
         far, near = np.zeros((17, 3)), np.zeros((17, 3))
         far[9], near[9] = (60, 250, 1.0), (151, 250, 1.0)
         cache = tmp_path / "wrists.json"
-        cache.write_text(json.dumps({"10:135:250": [[[list(rows[0].box), far.tolist()], [list(rows[1].box), near.tolist()]]]}))
+        cache.write_text(json.dumps({"10:135:250": [[[list(rows[0].box), far.tolist()], [list(rows[1].box), near.tolist()]]]}), encoding="utf-8")
 
         out = by_wrists(tmp_path / "none.mp4", [(10, 135, 250, "pass", "left")], [[(0.0, 0.0, 1), (0.0, 0.0, 2)]], rows, 50.0, cache)
 
@@ -207,7 +207,7 @@ class TestReadPlayersFields:
 
     def test_reads_every_field_as_the_csv_reader_does(self, tmp_path):
         path = tmp_path / "players.csv"
-        path.write_text(self.HEADER + "3,7,left,1.5,2.25,3,4,0.9,5,6,-1.2,3.4\n4,8,right,1,2,3,4,0.8,5,6,7.5,8\n")
+        path.write_text(self.HEADER + "3,7,left,1.5,2.25,3,4,0.9,5,6,-1.2,3.4\n4,8,right,1,2,3,4,0.8,5,6,7.5,8\n", encoding="utf-8")
 
         rows = read_players(path)
 
@@ -219,6 +219,6 @@ class TestReadPlayersFields:
 
     def test_a_file_without_rows_gives_none(self, tmp_path):
         path = tmp_path / "players.csv"
-        path.write_text(self.HEADER)
+        path.write_text(self.HEADER, encoding="utf-8")
 
         assert read_players(path) == []

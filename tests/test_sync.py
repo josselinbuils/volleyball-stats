@@ -12,7 +12,7 @@ class TestRemote:
     @staticmethod
     def copy(root, day="2026-11-08"):
         (root / day / "m").mkdir(parents=True, exist_ok=True)
-        (root / day / "m" / "source.json").write_text("{}")
+        (root / day / "m" / "source.json").write_text("{}", encoding="utf-8")
 
     def test_any_machine_sends_a_copy_from_the_servers_version_which_moves_it(self, tmp_path):
         root = str(tmp_path)
@@ -34,6 +34,7 @@ class TestRemote:
         assert not refused["ok"] and refused["busy"]
         assert sync_remote.run(root, "status", "m", "pc")["busy"] and not sync_remote.run(root, "status", "m", "mac")["busy"]
 
+    @pytest.mark.skipif(not shutil.which("cp"), reason="the server's cp")
     def test_keeping_this_machines_sets_the_servers_copy_aside(self, tmp_path):
         root = str(tmp_path)
         self.copy(tmp_path)
@@ -48,7 +49,7 @@ class TestRemote:
 
     def test_reads_the_records_of_the_old_claims(self, tmp_path):
         (tmp_path / "claims").mkdir()
-        (tmp_path / "claims" / "m.json").write_text(json.dumps({"owner": "mac", "since": "x", "version": 3, "pushed": None, "pushedBy": "mac"}))
+        (tmp_path / "claims" / "m.json").write_text(json.dumps({"owner": "mac", "since": "x", "version": 3, "pushed": None, "pushedBy": "mac"}), encoding="utf-8")
 
         found = sync_remote.run(str(tmp_path), "status", "m", "pc")
 
@@ -57,9 +58,9 @@ class TestRemote:
     def test_lists_each_match_by_its_newest_copy(self, tmp_path):
         for day in ("2026-11-01", "2026-11-03"):
             (tmp_path / day / "m").mkdir(parents=True)
-            (tmp_path / day / "m" / "source.json").write_text("{}")
+            (tmp_path / day / "m" / "source.json").write_text("{}", encoding="utf-8")
         (tmp_path / "2026-11-01" / "old").mkdir()
-        (tmp_path / "2026-11-01" / "old" / "source.json").write_text("{}")
+        (tmp_path / "2026-11-01" / "old" / "source.json").write_text("{}", encoding="utf-8")
         (tmp_path / "2026-11-03" / "courts").mkdir()
 
         found = sync_remote.run(str(tmp_path), "list", "-", "mac")["matches"]
@@ -94,11 +95,11 @@ class TestMerged:
 
 class TestRelativeCopies:
     def test_the_other_machines_paths_become_the_projects(self, tmp_path):
-        (tmp_path / "publish.json").write_text(json.dumps({"light": "/home/pc/volleyball-stats/data/matches/m/reencoded/a.mp4", "small": str(tmp_path / "publish.json"), "key": "~/.ssh/k"}))
+        (tmp_path / "publish.json").write_text(json.dumps({"light": "/home/pc/volleyball-stats/data/matches/m/reencoded/a.mp4", "small": str(tmp_path / "publish.json"), "key": "~/.ssh/k"}), encoding="utf-8")
 
         sync.relative_copies(tmp_path)
 
-        given = json.loads((tmp_path / "publish.json").read_text())
+        given = json.loads((tmp_path / "publish.json").read_text(encoding="utf-8"))
         assert given == {"light": "data/matches/m/reencoded/a.mp4", "small": str(tmp_path / "publish.json"), "key": "~/.ssh/k"}
 
 
@@ -106,13 +107,13 @@ class TestChanged:
     def test_a_file_changed_since_the_last_sync(self, tmp_path):
         match = tmp_path / "m"
         match.mkdir()
-        (match / "answers.json").write_text("a")
+        (match / "answers.json").write_text("a", encoding="utf-8")
         assert sync.changed(match)
 
         sync.remember(match, 3, backup.signature([match]))
 
         assert not sync.changed(match) and sync.local(match)["version"] == 3
-        (match / "answers.json").write_text("bb")
+        (match / "answers.json").write_text("bb", encoding="utf-8")
         assert sync.changed(match)
 
 
@@ -121,7 +122,7 @@ class TestOwn:
     def copied(tmp_path):
         match = tmp_path / "outputs" / "matches" / "m"
         match.mkdir(parents=True)
-        (match / "answers.json").write_text("a")
+        (match / "answers.json").write_text("a", encoding="utf-8")
         sync.remember(match, 3, backup.signature([match]))
         copy = tmp_path / "test" / "matches" / "m"
         shutil.copytree(match, copy)
@@ -129,8 +130,8 @@ class TestOwn:
 
     def test_a_copy_of_a_match_never_reaches_the_server(self, tmp_path, monkeypatch):
         match, copy = self.copied(tmp_path)
-        (copy / "publish.json").write_text(json.dumps({"upload": "root@host:/site/", "key": "k"}))
-        (copy / "answers.json").write_text("test")
+        (copy / "publish.json").write_text(json.dumps({"upload": "root@host:/site/", "key": "k"}), encoding="utf-8")
+        (copy / "answers.json").write_text("test", encoding="utf-8")
         monkeypatch.setattr(sync, "remote", lambda *a, **k: pytest.fail("reached the server"))
 
         assert sync.own(match) and not sync.own(copy)
@@ -149,7 +150,7 @@ class TestOwn:
     def test_a_state_written_before_it_named_its_folder_takes_it(self, tmp_path):
         match = tmp_path / "m"
         match.mkdir()
-        (match / sync.STATE).write_text(json.dumps({"version": 4, "signature": None}))
+        (match / sync.STATE).write_text(json.dumps({"version": 4, "signature": None}), encoding="utf-8")
 
         assert sync.own(match) and sync.local(match) == {"version": 4, "signature": None, "folder": str(match.resolve())}
 
@@ -159,6 +160,7 @@ class TestPush:
     def local(at: str) -> str:
         return datetime.strptime(at, "%Y-%m-%dT%H:%M:%S%z").astimezone().strftime("%H:%M")
 
+    @pytest.mark.skipif(not hasattr(time, "tzset"), reason="no time zone to set")
     def test_the_servers_time_said_in_this_machines(self, tmp_path, monkeypatch):
         monkeypatch.setenv("TZ", "Europe/Paris")
         time.tzset()
@@ -172,7 +174,7 @@ class TestPush:
     def setup(tmp_path, monkeypatch, answers: dict):
         match = tmp_path / "outputs" / "matches" / "m"
         match.mkdir(parents=True)
-        (match / "publish.json").write_text(json.dumps({"upload": "root@host:/site/", "key": "k"}))
+        (match / "publish.json").write_text(json.dumps({"upload": "root@host:/site/", "key": "k"}), encoding="utf-8")
         calls = []
 
         def remote(config, op, match="-", base=0, force=False, timeout=60):
@@ -215,7 +217,7 @@ class TestPush:
         with pytest.raises(SystemExit):
             sync.push(match)
         monkeypatch.undo()
-        (match / "answers.json").write_text("changed since")
+        (match / "answers.json").write_text("changed since", encoding="utf-8")
 
         assert sync.settle(match, {"version": 5, "pushedBy": sync.machine(), "pushing": None})
         assert sync.local(match)["version"] == 5 and "sending" not in sync.local(match) and sync.changed(match)
@@ -223,7 +225,7 @@ class TestPush:
     def test_another_machines_newer_copy_is_not_taken_for_this_ones(self, tmp_path):
         match = tmp_path / "m"
         match.mkdir()
-        (match / sync.STATE).write_text(json.dumps({"version": 4, "signature": None, "sending": {"from": 4, "signature": [0, 0.0]}}))
+        (match / sync.STATE).write_text(json.dumps({"version": 4, "signature": None, "sending": {"from": 4, "signature": [0, 0.0]}}), encoding="utf-8")
 
         assert not sync.settle(match, {"version": 5, "pushedBy": "mac", "pushing": None})
         assert not sync.settle(match, {"version": 6, "pushedBy": sync.machine(), "pushing": None})
@@ -242,10 +244,10 @@ class TestCheck:
     def setup(tmp_path, monkeypatch, version: int, here: int, changed: bool):
         match = tmp_path / "outputs" / "matches" / "m"
         match.mkdir(parents=True)
-        (match / "publish.json").write_text(json.dumps({"upload": "root@host:/site/", "key": "k"}))
+        (match / "publish.json").write_text(json.dumps({"upload": "root@host:/site/", "key": "k"}), encoding="utf-8")
         sync.remember(match, here, backup.signature([match]))
         if changed:
-            (match / "answers.json").write_text("new")
+            (match / "answers.json").write_text("new", encoding="utf-8")
         pulled = []
         monkeypatch.setattr(sync, "remote", lambda *a, **k: {"version": version, "day": "2026-11-08", "pushed": "2026-11-08T14:02:00+0100", "pushedBy": "mac", "ok": True, "busy": False})
         monkeypatch.setattr(sync, "pull", lambda name, outputs: pulled.append(name))
@@ -278,10 +280,10 @@ class TestAutoChoice:
     def test_a_machine_keeps_its_matches_on_the_server_once_it_chose_to(self, tmp_path):
         (tmp_path / "matches" / "m").mkdir(parents=True)
         assert not sync.active(tmp_path)
-        (tmp_path / "matches" / "m" / sync.STATE).write_text("{}")
+        (tmp_path / "matches" / "m" / sync.STATE).write_text("{}", encoding="utf-8")
         assert sync.active(tmp_path)
         (tmp_path / "matches" / "m" / sync.STATE).unlink()
-        (tmp_path / sync.SERVER).write_text("{}")
+        (tmp_path / sync.SERVER).write_text("{}", encoding="utf-8")
         assert sync.active(tmp_path)
         (tmp_path / sync.SERVER).unlink()
         sync.set_auto(tmp_path, True)
@@ -319,8 +321,8 @@ class TestAuto:
 class TestServer:
     def test_an_address_without_its_folder_takes_the_matchs(self, tmp_path):
         (tmp_path / "matches" / "m").mkdir(parents=True)
-        (tmp_path / "matches" / "m" / "publish.json").write_text(json.dumps({"upload": "root@h:/site/", "key": "k", "url": "https://x/"}))
-        (tmp_path / sync.SERVER).write_text(json.dumps({"upload": "root@h:", "key": "k2"}))
+        (tmp_path / "matches" / "m" / "publish.json").write_text(json.dumps({"upload": "root@h:/site/", "key": "k", "url": "https://x/"}), encoding="utf-8")
+        (tmp_path / sync.SERVER).write_text(json.dumps({"upload": "root@h:", "key": "k2"}), encoding="utf-8")
         assert sync.server(tmp_path) == {"upload": "root@h:/site/", "key": "k2", "url": "https://x/"}
-        (tmp_path / sync.SERVER).write_text(json.dumps({"upload": "root@h:/other/", "key": "k2"}))
+        (tmp_path / sync.SERVER).write_text(json.dumps({"upload": "root@h:/other/", "key": "k2"}), encoding="utf-8")
         assert sync.server(tmp_path)["upload"] == "root@h:/other/"

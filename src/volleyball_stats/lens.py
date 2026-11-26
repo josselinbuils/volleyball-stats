@@ -141,7 +141,7 @@ def lenses(outputs: Path) -> list[tuple[Path, dict]]:
     for folder in (outputs / OWN, PROFILES):
         for path in sorted(folder.glob("*.json")):
             try:
-                lens = json.loads(path.read_text())
+                lens = json.loads(path.read_text(encoding="utf-8"))
             except (OSError, ValueError):
                 continue
             if isinstance(lens, dict) and lens.get("camera"):

@@ -359,7 +359,7 @@ def mark_relances(video: Path, typed: list[Typed], fps: float, cache: Path | Non
     if not attacks:
         share(1.0)
         return typed
-    kept = json.loads(cache.read_text()) if cache and cache.exists() else {}
+    kept = json.loads(cache.read_text(encoding="utf-8")) if cache and cache.exists() else {}
     model, fresh = None, False
     reach = UNDER_PX * decode.size(video)[1] / 720
     # The frames an attack may look at, decoded in one pass: one ffmpeg a frame cost 0.7 s each in 4K.
@@ -450,7 +450,7 @@ def relances_by_touch(typed: list[Typed]) -> list[Typed]:
 
 
 def read_rows(path: Path) -> list[list[int]]:
-    with open(path) as f:
+    with open(path, encoding="utf-8") as f:
         return [[int(v) for v in row.values()] for row in csv.DictReader(f)]
 
 
@@ -478,7 +478,7 @@ def main() -> None:
         typed = relances_by_touch(typed)
     args.out.mkdir(parents=True, exist_ok=True)
     path = args.out / f"{args.contacts.stem.removesuffix('_contacts')}_actions.csv"
-    with open(path, "w", newline="") as f:
+    with open(path, "w", newline="", encoding="utf-8") as f:
         csv.writer(f).writerows([["frame", "x", "y", "type", "side"], *typed])
     print(f"{len(typed)} contacts -> {path}")
 

@@ -19,7 +19,7 @@ def test_on_until_the_review_closes_unless_asked_for_every_start(tmp_path, monke
     network.share(tmp_path, False)
     assert not network.shared(tmp_path) and not network.always(tmp_path)
     monkeypatch.delenv(network.SESSION)
-    (tmp_path / network.FILE).write_text("not json")
+    (tmp_path / network.FILE).write_text("not json", encoding="utf-8")
     assert not network.shared(tmp_path)
 
 

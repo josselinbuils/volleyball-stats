@@ -31,18 +31,18 @@ def chunked(video: Path, fps: float, total: int, out: Path) -> None:
         decode.frames = lambda v, width=decode.WIDTH, first=first, n=n: decode.piped(v, *decode.scaled(*decode.size(v), width), first=first, count=n + (a - first) + 2)
         match.track(video, None, fps, part.with_suffix(".tmp"), None, 0)
         decode.frames = whole
-        with part.with_suffix(".tmp").open() as f:
+        with part.with_suffix(".tmp").open(encoding="utf-8") as f:
             rows = list(csv.reader(f))[1:]
         keep = rows[a - first : a - first + n]
-        with part.with_suffix(".tmp").open("w", newline="") as f:
+        with part.with_suffix(".tmp").open("w", newline="", encoding="utf-8") as f:
             csv.writer(f).writerows([[a + i, *r[1:]] for i, r in enumerate(keep)])
         part.with_suffix(".tmp").replace(part)
         print(f"part {a} done", flush=True)
-    with out.open("w", newline="") as f:
+    with out.open("w", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
         w.writerow(["frame", "visible", "x", "y"])
         for a in range(0, total, CHUNK):
-            with (parts / f"{a}.csv").open() as g:
+            with (parts / f"{a}.csv").open(encoding="utf-8") as g:
                 w.writerows(csv.reader(g))
 
 
@@ -58,7 +58,7 @@ def main() -> None:
     args = parser.parse_args()
     import json
 
-    video = Path(json.loads((MATCHES / args.match / "source.json").read_text())["video"])
+    video = Path(json.loads((MATCHES / args.match / "source.json").read_text(encoding="utf-8"))["video"])
     load = ball.load_model
     if args.weights:
         ball.load_model = lambda device, path=args.weights: load(device, path)
@@ -74,7 +74,7 @@ def main() -> None:
     else:
         chunked(video, fps, total, args.out)
     if args.check:
-        with (MATCHES / args.match / "ball.csv").open() as f, args.out.open() as g:
+        with (MATCHES / args.match / "ball.csv").open(encoding="utf-8") as f, args.out.open(encoding="utf-8") as g:
             old = {int(r["frame"]): r for r in csv.DictReader(f)}
             new = list(csv.DictReader(g))
         same = near = 0

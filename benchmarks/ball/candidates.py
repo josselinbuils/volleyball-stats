@@ -145,7 +145,7 @@ def wasb(model_name: str, weights: str, stride: int = 3) -> Candidate:
 
         from models import build_model
 
-        config = yaml.safe_load((CACHE / f"wasb/src/configs/model/{model_name}.yaml").read_text())
+        config = yaml.safe_load((CACHE / f"wasb/src/configs/model/{model_name}.yaml").read_text(encoding="utf-8"))
         model = build_model({"model": AttrDict(config)})
         state = torch.load(CACHE / weights, map_location="cpu", weights_only=True)["model_state_dict"]
         model.load_state_dict({k.removeprefix("module."): v for k, v in state.items()})

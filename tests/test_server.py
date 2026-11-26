@@ -66,11 +66,11 @@ class TestListed:
         film.parent.mkdir(parents=True)
         if video:
             film.write_bytes(b"v")
-        (folder / "court.json").write_text("{}")
-        (folder / "report.md").write_text("")
-        (folder / "source.json").write_text(json.dumps({"video": str(film), "court": str(folder / "court.json")}))
+        (folder / "court.json").write_text("{}", encoding="utf-8")
+        (folder / "report.md").write_text("", encoding="utf-8")
+        (folder / "source.json").write_text(json.dumps({"video": str(film), "court": str(folder / "court.json")}), encoding="utf-8")
         if config is not None:
-            (folder / "publish.json").write_text(json.dumps(config))
+            (folder / "publish.json").write_text(json.dumps(config), encoding="utf-8")
         return folder
 
     def test_adds_the_matches_ready_to_go_online(self, tmp_path, monkeypatch):
@@ -94,4 +94,4 @@ class TestListed:
         server.first_upload(outputs, ["m"], True)
         server.first_upload(outputs, ["m"], False)
 
-        assert json.loads((match / "publish.json").read_text())["video"] is True
+        assert json.loads((match / "publish.json").read_text(encoding="utf-8"))["video"] is True

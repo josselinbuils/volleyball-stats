@@ -91,7 +91,7 @@ class TestTest:
         monkeypatch.setattr(court, "calibrate", lambda image, clicks, lens: found)
         verdict = placement.fit({"corner_left_far": [1, 2]}, "gym", tmp_path)
         assert verdict["found"] and verdict["ok"] and (tmp_path / "courts" / "gym.json").exists()
-        assert json.loads((tmp_path / placement.FOLDER / placement.VERDICT).read_text()) == verdict
+        assert json.loads((tmp_path / placement.FOLDER / placement.VERDICT).read_text(encoding="utf-8")) == verdict
         assert cv2.imread(str(tmp_path / placement.FOLDER / placement.PICTURE)) is not None
 
         monkeypatch.setattr(court, "find", lambda image, courts: found)

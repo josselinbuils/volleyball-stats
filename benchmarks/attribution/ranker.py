@@ -34,7 +34,7 @@ def candidates_features(video: Path, typed: list, rows: list, fps: float, cache:
     # The poses of every touch with two candidates or more, kept for the next runs.
     attribution.by_wrists(video, typed, found, rows, fps, cache, learned={"w": [0.0] * 34, "mean": [0.0] * 34, "std": [1.0] * 34})
     rule = attribution.by_wrists(video, typed, found, rows, fps, cache)
-    kept = json.loads(cache.read_text()) if cache.exists() else {}
+    kept = json.loads(cache.read_text(encoding="utf-8")) if cache.exists() else {}
     by_track, gap = attribution.tracks(rows), round(attribution.GAP_S * fps)
     feet = attribution.feet_on_court(rows) if places or widths else {}
     depth = ballsize.Depth(calibration, feet, gap) if widths and calibration is not None else None
@@ -60,7 +60,7 @@ def from_match(match: Path, video: Path, court: Path | None = None) -> list[dict
     are among the features."""
     fps = 50.0
     rows_csv = {int(r["frame"]): r for r in web.read_csv(match / "actions.csv")}
-    answers = json.loads((match / "identity_answers.json").read_text())
+    answers = json.loads((match / "identity_answers.json").read_text(encoding="utf-8"))
     table = identity.read_identities(match / "identities.csv")
     given = identity.named(table, identity.read_names(match))
     by_name = {(team, g["name"]): n for (team, n), g in given.items() if g.get("name")}
@@ -150,14 +150,14 @@ def main() -> None:
     kept = args.write and (not args.if_better or matches[2] > matches[1])
     if kept:
         ranker.WEIGHTS.parent.mkdir(exist_ok=True)
-        ranker.WEIGHTS.write_text(json.dumps({**ranker.fit(trainable(data), args.l2), "touches": len(trainable(data))}) + "\n")
+        ranker.WEIGHTS.write_text(json.dumps({**ranker.fit(trainable(data), args.l2), "touches": len(trainable(data))}) + "\n", encoding="utf-8")
         print(f"{ranker.WEIGHTS} written")
     elif args.write:
         print(f"{ranker.WEIGHTS} kept: no gain on the rule held out ({matches[2]} against {matches[1]} of {matches[0]})")
     if args.summaries:
         for folder in folders:
             found = each[folder.name]
-            (folder / "ranker.json").write_text(json.dumps({"touches": found[0], "rule": found[1], "learned": found[2], "kept": kept}) + "\n")
+            (folder / "ranker.json").write_text(json.dumps({"touches": found[0], "rule": found[1], "learned": found[2], "kept": kept}) + "\n", encoding="utf-8")
 
 
 if __name__ == "__main__":

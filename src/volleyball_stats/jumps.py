@@ -107,7 +107,7 @@ def pose_all(video: Path, attacks: list[tuple[int, int]], rows: dict[tuple[int, 
     of the pose matching the track's box (`rows`, by attack), None when none does; kept in `cache` (JSON, by
     "frame:track"). The share of the frames posed is told to `share` as it goes."""
     # ponytail: the cache is keyed by attack alone; delete jumps.json after changing BEFORE_S, AFTER_S or CROP.
-    kept = json.loads(cache.read_text()) if cache and cache.exists() else {}
+    kept = json.loads(cache.read_text(encoding="utf-8")) if cache and cache.exists() else {}
     todo = [(f, t) for f, t in attacks if f"{f}:{t}" not in kept]
     if not todo:
         share(1.0)

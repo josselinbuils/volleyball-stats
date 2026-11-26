@@ -1,4 +1,5 @@
 import json
+import os
 from pathlib import Path
 
 import pytest
@@ -21,16 +22,16 @@ class TestApp:
     def match(place, name, *names):
         folder = place / "outputs" / "matches" / name
         folder.mkdir(parents=True)
-        (folder / "teams.json").write_text(json.dumps({"teams": [{"name": "A", "colour": None}, {"name": "B", "colour": None}], "date": "2026-11-01"}))
+        (folder / "teams.json").write_text(json.dumps({"teams": [{"name": "A", "colour": None}, {"name": "B", "colour": None}], "date": "2026-11-01"}), encoding="utf-8")
         for file in names:
-            (folder / file).write_text("{}")
+            (folder / file).write_text("{}", encoding="utf-8")
         return folder
 
     @staticmethod
     def job(place, name, **fields):
         folder = jobs.folder(place / "outputs")
         folder.mkdir(parents=True, exist_ok=True)
-        (folder / f"{name}.json").write_text(json.dumps({"id": name, "kind": "import", "steps": [], "started": 1.0, "ended": 2.0, **fields}))
+        (folder / f"{name}.json").write_text(json.dumps({"id": name, "kind": "import", "steps": [], "started": 1.0, "ended": 2.0, **fields}), encoding="utf-8")
 
     def test_tells_what_each_match_waits_for(self, place, monkeypatch):
         # No pipeline of this machine's: one running for real would name these one-letter matches.
@@ -63,8 +64,8 @@ class TestApp:
         resume.start(folder / resume.FOLDER, "k", 4 * resume.CHUNK)
         resume.save(folder / resume.FOLDER, resume.CHUNK, [], [], None)
         assert app.preparing([])[0]["resume"] == 0.25
-        (folder / "ball.csv").write_text("")
-        (folder / "players.csv").write_text("")
+        (folder / "ball.csv").write_text("", encoding="utf-8")
+        (folder / "players.csv").write_text("", encoding="utf-8")
         assert app.preparing([])[0]["resume"] == 1.0
 
     def test_lists_the_tasks_running_or_just_ended(self, place):
@@ -100,7 +101,7 @@ class TestApp:
     def test_swaps_the_sides(self, place):
         folder = self.match(place, "a")
         app.swap("a")
-        assert [t["name"] for t in json.loads((folder / "teams.json").read_text())["teams"]] == ["B", "A"]
+        assert [t["name"] for t in json.loads((folder / "teams.json").read_text(encoding="utf-8"))["teams"]] == ["B", "A"]
 
     def test_deletes_only_a_match_not_reviewed(self, place):
         self.match(place, "a")
@@ -127,23 +128,23 @@ class TestApp:
 
     def test_lists_the_teams_played_most_matches_first(self, place):
         self.match(place, "one")
-        (self.match(place, "two") / "teams.json").write_text(json.dumps({"teams": [{"name": "C"}, {"name": "B"}]}))
+        (self.match(place, "two") / "teams.json").write_text(json.dumps({"teams": [{"name": "C"}, {"name": "B"}]}), encoding="utf-8")
         assert app.played_teams() == ["B", "A", "C"]
 
     def test_the_net_is_the_last_match_s_else_a_men_s(self, place):
         assert app.last_net() == 2.43
-        (self.match(place, "2026-01-01-a") / "teams.json").write_text(json.dumps({"teams": [], "net": 2.24}))
-        (self.match(place, "2026-02-01-b") / "teams.json").write_text(json.dumps({"teams": []}))
+        (self.match(place, "2026-01-01-a") / "teams.json").write_text(json.dumps({"teams": [], "net": 2.24}), encoding="utf-8")
+        (self.match(place, "2026-02-01-b") / "teams.json").write_text(json.dumps({"teams": []}), encoding="utf-8")
         assert app.last_net() == 2.24
 
     def test_saves_the_server_for_every_match(self, place):
         folder = self.match(place, "one")
-        (folder / "source.json").write_text(json.dumps({"video": str(folder / "one.mp4"), "court": str(folder / "court.json")}))
-        (folder / "publish.json").write_text(json.dumps({"club": 2, "video": True}))
+        (folder / "source.json").write_text(json.dumps({"video": str(folder / "one.mp4"), "court": str(folder / "court.json")}), encoding="utf-8")
+        (folder / "publish.json").write_text(json.dumps({"club": 2, "video": True}), encoding="utf-8")
         body = {"address": "root@1.2.3.4", "folder": "/srv/site", "key": "~/.ssh/k", "url": "https://x.org/v"}
         answer = app.handle("POST", "/app/server", "", body, list)
         assert answer[2] == 200 and json.loads(answer[0])["server"] == {**body, "folder": "/srv/site/", "url": "https://x.org/v/"}
-        assert json.loads((place / "outputs" / "matches" / "one" / "publish.json").read_text()) == {
+        assert json.loads((place / "outputs" / "matches" / "one" / "publish.json").read_text(encoding="utf-8")) == {
             "club": 2, "video": True, "upload": "root@1.2.3.4:/srv/site/", "key": "~/.ssh/k", "url": "https://x.org/v/", "site": "outputs/hosted"
         }
         assert app.handle("POST", "/app/server", "", {**body, "address": "nobody"}, list)[2] == 400
@@ -155,21 +156,21 @@ class TestApp:
         clicks = {"corner_left_far": [1, 2], "attack_left_far": [3, 4], "center_far": [5, 6], "corner_left_near": [7, 8]}
         # Imported before cameras were told apart: the outputs folder's one lens, once calibrated.
         app.fit_court("m", clicks, "Gym")
-        (place / "outputs" / lens.LEGACY).write_text("{}")
+        (place / "outputs" / lens.LEGACY).write_text("{}", encoding="utf-8")
         app.fit_court("m", clicks, "Gym")
         assert "--lens" not in started[0] and started[1][-2:] == ["--lens", str(place / "outputs" / lens.LEGACY)]
         # Its camera named: that camera's profile, none for one unknown, which the card says.
-        (folder / lens.CAMERA).write_text(json.dumps(OSMO))
+        (folder / lens.CAMERA).write_text(json.dumps(OSMO), encoding="utf-8")
         app.fit_court("m", clicks, "Gym")
         assert started[2][-1].endswith("dji_osmoaction3_3840x2160_50.json") and app.lens_need("m") is None
-        (folder / lens.CAMERA).write_text(json.dumps({**OSMO, "model": "Apple iPhone 15"}))
+        (folder / lens.CAMERA).write_text(json.dumps({**OSMO, "model": "Apple iPhone 15"}), encoding="utf-8")
         app.fit_court("m", clicks, "Gym")
         assert "--lens" not in started[3] and app.lens_need("m") == "none"
         # Calibrated since a court placed without it: to place again.
-        (folder / app.COURT).write_text(json.dumps({"lens": None}))
+        (folder / app.COURT).write_text(json.dumps({"lens": None}), encoding="utf-8")
         own = place / "outputs" / lens.OWN / "iphone.json"
         own.parent.mkdir()
-        own.write_text(json.dumps({"camera": {**OSMO, "model": "Apple iPhone 15"}, "made": "2026-11-26T10:00:00"}))
+        own.write_text(json.dumps({"camera": {**OSMO, "model": "Apple iPhone 15"}, "made": "2026-11-26T10:00:00"}), encoding="utf-8")
         assert app.lens_need("m") == "refit"
         assert [(k["model"], k["own"]) for k in app.lens_state()["lenses"]] == [("Apple iPhone 15", True), ("DJI OsmoAction3", False)]
 
@@ -178,11 +179,11 @@ class TestApp:
         monkeypatch.setattr(app.jobs, "start", lambda outputs, job_id, kind, steps: started.append((job_id, kind, steps[0][1])))
         monkeypatch.setattr(app, "chapters_of", lambda source, recording: [type("Chapter", (), {"path": Path(f"{source}/{recording}a.mp4")})(), None])
         assert app.handle("POST", "/app/lens/calibrate", "", {"source": "card", "recording": 2}, list)[2] == 200
-        assert started == [("lens", "lens", ["volleyball_stats.lens", "calibrate", "card/2a.mp4", "--outputs", str(place / "outputs")])]
+        assert started == [("lens", "lens", ["volleyball_stats.lens", "calibrate", str(Path("card/2a.mp4")), "--outputs", str(place / "outputs")])]
         assert app.handle("GET", "/app/board", "", {}, list)[1] == "image/png"
         self.job(place, "lens", kind="lens")
         result = {"camera": OSMO, "views": 4, "kept": False, "why": "views"}
-        (jobs.folder(place / "outputs") / "lens.log").write_text("board on 4 frames\n" + lens.RESULT + json.dumps(result) + "\n")
+        (jobs.folder(place / "outputs") / "lens.log").write_text("board on 4 frames\n" + lens.RESULT + json.dumps(result) + "\n", encoding="utf-8")
         assert app.lens_state()["job"]["result"] == result
 
     def test_tests_the_framing_then_places_its_court_by_hand(self, place, monkeypatch):
@@ -192,7 +193,7 @@ class TestApp:
         monkeypatch.setattr(app.jobs, "start", lambda outputs, job_id, kind, steps: started.append((job_id, steps[0][1])))
         monkeypatch.setattr(app, "chapters_of", lambda source, recording: [type("Chapter", (), {"path": Path(f"{source}/{recording}a.mp4")})()])
         assert app.handle("POST", "/app/placement/test", "", {"source": "card", "recording": 1}, list)[2] == 200
-        assert started[0] == ("placement", ["volleyball_stats.placement", "test", "card/1a.mp4", "--outputs", str(place / "outputs")])
+        assert started[0] == ("placement", ["volleyball_stats.placement", "test", str(Path("card/1a.mp4")), "--outputs", str(place / "outputs")])
         # No stored court matched: the test's picture, to click.
         folder = place / "outputs" / placement.FOLDER
         folder.mkdir(parents=True)
@@ -205,8 +206,8 @@ class TestApp:
         assert app.handle("POST", "/app/placement/fit", "", {"clicks": {"corner_left_far": [1, 2]}, "court": "Gym"}, list)[2] == 400
         assert app.handle("POST", "/app/placement/fit", "", {"clicks": clicks, "court": "Salle Jean Zay"}, list)[2] == 200
         assert started[1][1][:2] == ["volleyball_stats.placement", "fit"] and started[1][1][-4:] == ["--court", "salle_jean_zay", "--outputs", str(place / "outputs")]
-        assert json.loads((folder / "clicks.json").read_text()) == clicks
-        (folder / placement.VERDICT).write_text(json.dumps({"found": True, "ok": True}))
+        assert json.loads((folder / "clicks.json").read_text(encoding="utf-8")) == clicks
+        (folder / placement.VERDICT).write_text(json.dumps({"found": True, "ok": True}), encoding="utf-8")
         assert app.placement_state()["verdict"] == {"found": True, "ok": True} and not app.placement_state()["court"]
 
     def test_exports_only_the_matches_ready(self, place, monkeypatch):
@@ -294,6 +295,9 @@ class TestApp:
         assert app.app_window("http://127.0.0.1:8765/", "linux") == ["chromium", "--app=http://127.0.0.1:8765/"]
         monkeypatch.setattr(app.shutil, "which", lambda name: None)
         assert app.app_window("http://127.0.0.1:8765/", "linux") is None
+        edge = Path(__file__)
+        monkeypatch.setitem(app.APP_BROWSERS, "windows", ["C:\\nowhere\\chrome.exe", str(edge)])
+        assert app.app_window("http://127.0.0.1:8765/", "windows") == [str(edge), "--app=http://127.0.0.1:8765/"]
 
     def test_under_wsl_opens_the_page_once_windows_reaches_the_server(self, monkeypatch):
         tries, shown = iter([False, False, True]), []
@@ -313,7 +317,7 @@ class TestApp:
         assert {command: app.OPENING[command] for command in (None, "browser", "server")} == {None: "window", "browser": "tab", "server": None}
 
     def test_refuses_to_start_at_a_lowered_priority(self, monkeypatch):
-        monkeypatch.setattr(app.os, "nice", lambda increment: 5)
+        monkeypatch.setattr(app.procs, "priority", lambda: 5)
         monkeypatch.setattr(app.os, "chdir", lambda path: None)
         monkeypatch.setattr(app.shortcut, "update_launcher", lambda: None)
         monkeypatch.setattr(app, "already_open", lambda port: False)
@@ -371,6 +375,7 @@ class TestPickVideo:
         monkeypatch.setattr(app.subprocess, "run", run)
         return ran
 
+    @pytest.mark.skipif(os.name == "nt", reason="a Mac's paths")
     def test_gives_the_videos_picked_in_the_finder(self, monkeypatch):
         ran = self.run_as(monkeypatch, "mac", "/Users/léa/Movies/a.mp4\n/Users/léa/Movies/b.mp4\n".encode())
         assert app.picker() == "mac" and app.pick("files") == ["/Users/léa/Movies/a.mp4", "/Users/léa/Movies/b.mp4"]
@@ -386,6 +391,7 @@ class TestPickVideo:
         with pytest.raises(ValueError):
             app.pick("anything")
 
+    @pytest.mark.skipif(os.name == "nt", reason="WSL's paths")
     def test_under_wsl_gives_windows_paths_as_wsl_sees_them_their_drive_mounted(self, monkeypatch):
         mounted = []
         ran = self.run_as(monkeypatch, "wsl", "E:\\DCIM\\DJI_001\\match é.MP4\r\nE:\\DCIM\\DJI_001\\b.MP4\r\n".encode())
@@ -398,6 +404,7 @@ class TestPickVideo:
         ran = self.run_as(monkeypatch, "wsl", b"C:\\Users\\a\\Videos\r\n")
         assert app.pick("folder") == ["/mnt/c/Users/a/Videos"] and "FolderBrowserDialog" in ran[0][-1]
 
+    @pytest.mark.skipif(os.name == "nt", reason="Linux's paths")
     def test_a_linux_desktop_uses_its_own_tool_and_none_means_no_window(self, monkeypatch):
         self.run_as(monkeypatch, "linux", b"/home/a/m.mp4\n/home/a/n.mp4\n")
         monkeypatch.setenv("DISPLAY", ":0")
@@ -411,6 +418,13 @@ class TestPickVideo:
         monkeypatch.delenv("DISPLAY")
         monkeypatch.delenv("WAYLAND_DISPLAY", raising=False)
         assert app.picker() is None
+
+    def test_on_windows_gives_its_paths_and_drives_as_they_are(self, monkeypatch):
+        ran = self.run_as(monkeypatch, "windows", "E:\\DCIM\\DJI_001\\match é.MP4\r\n".encode())
+        assert app.picker() == "windows" and app.pick("files") == [str(Path("E:\\DCIM\\DJI_001\\match é.MP4"))] and ran[0][0] == "powershell.exe"
+        self.run_as(monkeypatch, "windows", "C:|Windows\r\nE:|OSMO ACTION\r\n".encode())
+        monkeypatch.setattr(app.Path, "home", lambda: Path("/nowhere"))
+        assert [(s["path"], s["name"], s.get("drive")) for s in app.sources()] == [(str(Path("E:\\")), "OSMO ACTION (E:)", None)]
 
     def test_names_windows_drives_as_windows_does(self, monkeypatch):
         self.run_as(monkeypatch, "wsl", "C:|Windows\r\nD:|\r\nE:|OSMO ACTION\r\n".encode())

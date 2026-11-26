@@ -16,7 +16,7 @@ def rally(start=5, end=15):
 
 def test_read_boxes_keeps_a_row_every_step_in_fractions(tmp_path):
     path = tmp_path / "players.csv"
-    path.write_text("frame,track,team,x1,y1,x2,y2,conf,feet_x,feet_y,court_x,court_y\n" + "".join(f"{f},1,left,100,50,200,150,0.9,0,0,0,0\n" for f in range(6)))
+    path.write_text("frame,track,team,x1,y1,x2,y2,conf,feet_x,feet_y,court_x,court_y\n" + "".join(f"{f},1,left,100,50,200,150,0.9,0,0,0,0\n" for f in range(6)), encoding="utf-8")
 
     found = read_boxes(path, (1000, 500), 50)
 

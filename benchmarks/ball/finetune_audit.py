@@ -29,7 +29,7 @@ SAMPLES = {"only1024": 60, "both": 30, "unsure": 40, "off": 30}
 
 def pools(folder: Path) -> dict[str, list[tuple]]:
     out: dict[str, list[tuple]] = {k: [] for k in SAMPLES}
-    for r in csv.DictReader((folder / "labels.csv").open()):
+    for r in csv.DictReader((folder / "labels.csv").open(encoding="utf-8")):
         if r["unit"].startswith("rally") and r["kind"] == "ball":
             if r["teacher"] == "1024" and r["also512"] == "0":
                 out["only1024"].append((r["unit"], int(r["frame"]), int(r["x"]), int(r["y"])))
@@ -37,7 +37,7 @@ def pools(folder: Path) -> dict[str, list[tuple]]:
                 out["both"].append((r["unit"], int(r["frame"]), int(r["x"]), int(r["y"])))
         elif r["unit"].startswith("rally") and r["kind"] == "unsure":
             out["unsure"].append((r["unit"], int(r["frame"]), int(r["x"]), int(r["y"])))
-    for r in csv.DictReader((folder / "offpath.csv").open()):
+    for r in csv.DictReader((folder / "offpath.csv").open(encoding="utf-8")):
         out["off"].append((r["unit"], int(r["frame"]), int(r["x"]), int(r["y"])))
     return out
 
@@ -77,7 +77,7 @@ def main() -> None:
             _, _, x, y = chosen[kind][n]
             tiles[kind, n] = tile(image, x, y, n)
     for kind, items in chosen.items():
-        (audit / f"{args.match[:10]}_{kind}.json").write_text(json.dumps(items))
+        (audit / f"{args.match[:10]}_{kind}.json").write_text(json.dumps(items), encoding="utf-8")
         per = COLS * ROWS
         for page in range(0, len(items), per):
             blank = np.zeros((CROP * ZOOM, CROP * ZOOM, 3), np.uint8)

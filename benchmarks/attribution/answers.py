@@ -35,7 +35,7 @@ def main() -> None:
     why = {r["frame"]: reason for r, reason in doubtful(actions, windows)}
     row = {r["frame"]: r for r in actions}
     path = args.match / "identity_answers.json"
-    answers = json.loads(path.read_text()).get("touch", []) if path.exists() else []
+    answers = json.loads(path.read_text(encoding="utf-8")).get("touch", []) if path.exists() else []
     given = identity.named(identity.read_identities(args.match / "identities.csv"), identity.read_names(args.match))
     by_name = {(team, g["name"]): number for (team, number), g in given.items() if g.get("name")}
     by_reason, by_gap, nobody, outside = defaultdict(list), defaultdict(list), 0, 0
@@ -68,7 +68,7 @@ def main() -> None:
 def near_rows(path: Path, frames: set[int], margin: int) -> list[Row]:
     """players.csv's rows within `margin` frames of `frames`."""
     keep = {f + d for f in frames for d in range(-margin, margin + 1)}
-    with open(path) as f:
+    with open(path, encoding="utf-8") as f:
         return [
             Row(int(r["frame"]), int(r["track"]), tuple(float(r[k]) for k in ("x1", "y1", "x2", "y2")), float(r["conf"]),
                 (float(r["feet_x"]), float(r["feet_y"])), (float(r["court_x"]), float(r["court_y"])), r["team"])

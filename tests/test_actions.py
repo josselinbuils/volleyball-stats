@@ -222,7 +222,7 @@ class TestMarkRelances:
         # A player standing under the ball, feet still: a relance.
         frames = {str(f): [[100.0, 100.0, 140.0, 300.0]] for f in range(70, 101)}
         cache = tmp_path / "relances.json"
-        cache.write_text(json.dumps(frames))
+        cache.write_text(json.dumps(frames), encoding="utf-8")
 
         import cv2
 

@@ -76,6 +76,7 @@ class TestClips:
 
         gesture.clips(video, rows, tmp_path / "cache")
         assert len(asked) == 2
+        del store  # Windows cuts no file a view holds open
         video.write_bytes(b"another video")
         gesture.clips(video, rows, tmp_path / "cache")
         assert len(asked) == 3
@@ -89,11 +90,11 @@ def make(outputs, name: str, checked: list[int], contacts=None):
     match = outputs / "matches" / name
     (match / "review").mkdir(parents=True)
     contacts = contacts if contacts is not None else [{"rally": 0, "type": "serve", "t": 2.2}, {"rally": 0, "type": "dig", "t": 4.0}, {"rally": 0, "type": "fault", "t": 5.2}]
-    (match / "review" / "data.js").write_text("window.MATCH = " + json.dumps({"rallies": RALLIES, "contacts": contacts}) + ";")
-    (match / "identity_answers.json").write_text(json.dumps({"log": [{"id": "ok", "checked": checked}]}))
-    (match / "actions.csv").write_text("frame,x,y,type,side,track\n")
+    (match / "review" / "data.js").write_text("window.MATCH = " + json.dumps({"rallies": RALLIES, "contacts": contacts}) + ";", encoding="utf-8")
+    (match / "identity_answers.json").write_text(json.dumps({"log": [{"id": "ok", "checked": checked}]}), encoding="utf-8")
+    (match / "actions.csv").write_text("frame,x,y,type,side,track\n", encoding="utf-8")
     (outputs / f"{name}.mp4").write_bytes(b"video")
-    (match / "source.json").write_text(json.dumps({"video": str(outputs / f"{name}.mp4"), "court": "court.json"}))
+    (match / "source.json").write_text(json.dumps({"video": str(outputs / f"{name}.mp4"), "court": "court.json"}), encoding="utf-8")
     return match
 
 
@@ -123,15 +124,15 @@ class TestDue:
         folder = tmp_path / gesture.WEIGHTS
         folder.mkdir(parents=True)
         signature = gesture_training.signature(gesture_training.sources(a))
-        (folder / gesture_training.REFUSED).write_text(json.dumps({"matches": signature}))
+        (folder / gesture_training.REFUSED).write_text(json.dumps({"matches": signature}), encoding="utf-8")
         assert gesture_training.due(a) == []
 
         (folder / gesture_training.REFUSED).unlink()
         (folder / gesture.MODEL).touch()
-        (folder / gesture_training.TRAINED).write_text(json.dumps({"matches": signature}))
+        (folder / gesture_training.TRAINED).write_text(json.dumps({"matches": signature}), encoding="utf-8")
         assert gesture_training.due(a) == []
 
-        (folder / gesture_training.TRAINED).write_text(json.dumps({"matches": {**signature, "a": "old"}}))
+        (folder / gesture_training.TRAINED).write_text(json.dumps({"matches": {**signature, "a": "old"}}), encoding="utf-8")
         assert len(gesture_training.due(a)) == 2
 
 

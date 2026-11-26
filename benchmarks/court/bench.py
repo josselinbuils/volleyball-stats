@@ -25,7 +25,7 @@ GROUND_TRUTH = Path("benchmarks/court/ground_truth")
 
 
 def load_ground_truth(path: Path) -> tuple[int, Points, dict[str, float]]:
-    data = json.loads(path.read_text())
+    data = json.loads(path.read_text(encoding="utf-8"))
     return data["frame"], {k: tuple(v) for k, v in data["points"].items()}, data.get("tolerance", {})
 
 
@@ -36,7 +36,7 @@ def line_landmarks(points: Points) -> Points:
 
 def ground_truth_image(video: Path, truth_path: Path) -> np.ndarray:
     """The median frame for a fixed camera, the labelled frame otherwise."""
-    data = json.loads(truth_path.read_text())
+    data = json.loads(truth_path.read_text(encoding="utf-8"))
     return background(video) if data.get("background") else read_frame(video, data["frame"])
 
 

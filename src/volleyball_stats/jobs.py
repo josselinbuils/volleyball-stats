@@ -8,7 +8,6 @@ server's, so that a job outlives the server switching matches or stopping. Each 
 import json
 import os
 import re
-import signal
 import subprocess
 import sys
 import threading
@@ -17,7 +16,7 @@ from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
 
-from volleyball_stats import awake, files
+from volleyball_stats import awake, files, procs
 
 FOLDER = "jobs"
 # A line of a command's output telling its progress (0-1) or its stage (match.STAGE).
@@ -45,7 +44,7 @@ class Stages:
     def __init__(self, path: Path | None, plan: list[str], took: dict[str, float], told: bool = True, scale: float = 1.0, keep: bool = True):
         self.path, self.plan, self.told, self.scale, self.keep = path, plan, told, max(scale, 1e-9), keep
         try:
-            self.took = {**took, **json.loads(path.read_text())} if path else dict(took)
+            self.took = {**took, **json.loads(path.read_text(encoding="utf-8"))} if path else dict(took)
         except (OSError, ValueError):
             self.took = dict(took)
         self.kept = dict(self.took)
@@ -176,7 +175,7 @@ def follow(command: list[str], share: Share, **options) -> None:
 def ffmpeg(command: list[str], seconds: float, share: Share) -> subprocess.CompletedProcess:
     """Runs ffmpeg's `command` (starting "ffmpeg"), its share done told from the time it wrote over the `seconds` of
     video it writes; returns how it ended, its errors kept, as `subprocess.run(capture_output=True, text=True)`."""
-    process = subprocess.Popen([command[0], "-progress", "pipe:1", "-nostats", *command[1:]], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    process = subprocess.Popen([command[0], "-progress", "pipe:1", "-nostats", *command[1:]], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding="utf-8", errors="replace")
     errors: list[str] = []
     # Read apart, else a full pipe of errors would stop ffmpeg.
     reader = threading.Thread(target=lambda: errors.extend(process.stderr), daemon=True)
@@ -211,7 +210,7 @@ def record_of(outputs: Path, job_id: str) -> Path:
 
 def is_running(outputs: Path, job_id: str) -> bool:
     record = record_of(outputs, job_id)
-    return record.exists() and running(json.loads(record.read_text()))
+    return record.exists() and running(json.loads(record.read_text(encoding="utf-8")))
 
 
 def start(outputs: Path, job_id: str, kind: str, steps: list[tuple[str, list[str]]], **extra) -> dict:
@@ -224,10 +223,11 @@ def start(outputs: Path, job_id: str, kind: str, steps: list[tuple[str, list[str
         raise Running(job_id)
     job = {"id": job_id, "kind": kind, "steps": [{"name": n, "args": a} for n, a in steps], "started": time.time(), **extra}
     files.write_text(record, json.dumps(job, indent=1))
-    log = open(jobs / f"{job_id}.log", "w")
-    process = subprocess.Popen(
+    log = open(jobs / f"{job_id}.log", "w", encoding="utf-8")
+    # UTF-8 on every system (Windows' default is its code page) for its output, the log, and the files it writes.
+    process = procs.start_apart(
         [sys.executable, "-m", "volleyball_stats.jobs", str(record)],
-        stdin=subprocess.DEVNULL, stdout=log, stderr=subprocess.STDOUT, start_new_session=True, env={**os.environ, "PYTHONUNBUFFERED": "1"},
+        stdin=subprocess.DEVNULL, stdout=log, stderr=subprocess.STDOUT, env={**os.environ, "PYTHONUNBUFFERED": "1", "PYTHONUTF8": "1"},
     )
     log.close()
     job.update(pid=process.pid, pidStarted=started_at(process.pid), pidKey=process_key(process.pid))
@@ -241,7 +241,7 @@ WRITING = threading.Lock()
 
 def update(record: Path, **fields) -> None:
     with WRITING:
-        job = json.loads(record.read_text())
+        job = json.loads(record.read_text(encoding="utf-8"))
         job.update(fields)
         files.write_text(record, json.dumps(job, indent=1))
 
@@ -254,22 +254,13 @@ LSTART = "%a %b %d %H:%M:%S %Y"
 
 def started_at(pid: int) -> str | None:
     """When the process `pid` started, as `ps` tells it: another process given the same number later starts later."""
-    try:
-        found = subprocess.run(["ps", "-o", "lstart=", "-p", str(pid)], capture_output=True, text=True, timeout=5).stdout.strip()
-    except (OSError, subprocess.SubprocessError):
-        return None
-    return found or None
+    return procs.started(pid)
 
 
 def process_key(pid: int) -> str | None:
-    """Where the system tells it (Linux, WSL2), the process `pid` exactly: the boot's id and its start in ticks since
-    the boot, which no clock change moves; None elsewhere (macOS: `started_at` only)."""
-    try:
-        boot = Path("/proc/sys/kernel/random/boot_id").read_text().strip()
-        ticks = Path(f"/proc/{pid}/stat").read_text().rsplit(")", 1)[1].split()[19]
-    except (OSError, IndexError):
-        return None
-    return f"{boot}:{ticks}"
+    """Where the system tells it (Linux, WSL2, Windows), the process `pid` exactly; None elsewhere (macOS: `started_at`
+    only)."""
+    return procs.key(pid)
 
 
 def same_start(now: str | None, since: str) -> bool:
@@ -285,21 +276,8 @@ def same_start(now: str | None, since: str) -> bool:
 def alive(pid: int | None, since: str | None = None, key: str | None = None) -> bool:
     """Whether the process `pid` runs, and is the one started at `since` (`ps`'s time) or known as `key`
     (`process_key`) when given: a restart reuses numbers."""
-    if not pid:
+    if not pid or not procs.exists(pid) or procs.ended_child(pid):
         return False
-    try:
-        os.kill(pid, 0)
-    except ProcessLookupError:
-        return False
-    except PermissionError:
-        return True
-    # A child of this process that ended stays a zombie until waited for.
-    try:
-        done, _ = os.waitpid(pid, os.WNOHANG)
-        if done:
-            return False
-    except ChildProcessError:
-        pass
     found = process_key(pid) if key else None
     if found:
         return found == key
@@ -311,12 +289,12 @@ def running(job: dict) -> bool:
 
 
 def tail(path: Path) -> str:
-    """The end of a log, each line as it last showed (ffmpeg rewrites its own with \\r)."""
+    """The end of a log, each line as it last showed (ffmpeg rewrites its own with \\r; Windows ends lines with \\r\\n)."""
     if not path.exists():
         return ""
     with open(path, "rb") as f:
         f.seek(max(0, path.stat().st_size - TAIL_BYTES))
-        text = f.read().decode(errors="replace")
+        text = f.read().decode(errors="replace").replace("\r\n", "\n")
     return "\n".join(line.rsplit("\r", 1)[-1] for line in text.split("\n"))
 
 
@@ -359,7 +337,7 @@ def state(outputs: Path) -> list[dict]:
     found = []
     for record in sorted(folder(outputs).glob("*.json")):
         try:
-            job = json.loads(record.read_text())
+            job = json.loads(record.read_text(encoding="utf-8"))
         except (OSError, ValueError):
             continue
         text = tail(record.with_suffix(".log"))
@@ -378,12 +356,9 @@ def state(outputs: Path) -> list[dict]:
 def stop(outputs: Path, job_id: str) -> None:
     """Stops a running job and the commands it started."""
     record = record_of(outputs, job_id)
-    job = json.loads(record.read_text())
+    job = json.loads(record.read_text(encoding="utf-8"))
     if running(job):
-        try:
-            os.killpg(job["pid"], signal.SIGTERM)
-        except ProcessLookupError:
-            pass
+        procs.stop_tree(job["pid"])
         update(record, ended=time.time(), failed=job.get("step"), error="stopped")
 
 
@@ -395,7 +370,7 @@ def forget(outputs: Path, job_id: str) -> None:
 
 def run(record: Path) -> None:
     """The runner: each step in turn, stopping at the first that fails, the machine kept awake (`battery` told)."""
-    job = json.loads(record.read_text())
+    job = json.loads(record.read_text(encoding="utf-8"))
     with awake.held(lambda on: update(record, battery=on)):
         for step in job["steps"]:
             update(record, step=step["name"], stepStarted=time.time())

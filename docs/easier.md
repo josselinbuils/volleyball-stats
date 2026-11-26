@@ -152,10 +152,11 @@ fan and the battery. The fewest words: the drawing says most.
 
 ## 7. Native Windows
 
-- [ ] Done
+- [x] Done (26 Nov), but a real upload and backup from Windows itself: checked up to the server, read-only (below);
+  one waits for the owner's go-ahead. The shortcut natively comes with step 8's installer (its launcher, a `.cmd`)
 
 The app and the pipeline on Windows itself, no WSL. CUDA PyTorch runs there; the rest assumes a POSIX system.
-Keep WSL2 working until native has passed everything below.
+Keep WSL2 working until native has passed everything below (it stays: the owner's PC runs both).
 
 - Audit, then fix each: the 7 modules naming WSL (`app.py`, `doctor.py`, `jobs.py`, `network.py`, `shortcut.py`,
   `jerseys.py`, `likeness.py`); `jobs.py`'s process handling (`start_new_session`, `ps lstart`, `process_key`'s boot
@@ -223,6 +224,39 @@ the 3-minute clip, against WSL2 on the same file:
     move by about 0.2 px, which was enough to split one rally in two (6 rallies against 5, the set 3-3 against 2-3).
     Not Windows' doing: a Mac on Homebrew's ffmpeg differs from the PC already. The installers bring one ffmpeg
     version everywhere (step 8), the same under WSL2, and Diagnostics names a different one.
+
+### Done (26 Nov)
+
+Every point of the audit fixed but 13 and git (step 8's: the installers bring them), in code every system runs:
+- `procs.py`: processes the same everywhere (`OpenProcess`, its creation time as the job's key, `GetPriorityClass` as a
+  nice value, the CPU's busy share over a moment as the load, the memory, PowerShell for command lines), jobs started
+  apart (their own process group, out of the app's job), a stop through `taskkill /T`.
+- `transfer.py`: rsync's options the app uses (`-rtcn`, `--delete`, `--update`, `--delay-updates`, `--backup-dir`,
+  filters, `--itemize-changes`, its exit codes) in the standard library, its other side the server's python3 through
+  ssh, chosen only where rsync is missing; `test_transfer.py` runs rsync and it on the same 12 cases (24 with dry runs).
+- `decode.popen`: the frames' pipes of 1 MB on Windows (decode, blur, films, the ball's path, the play's pass, the video
+  copies); Linux's and macOS's unchanged.
+- `onnxruntime-gpu` on Windows too (torch's CUDA, `preload_dlls`); UTF-8 everywhere; `files.replace` retries a file
+  another process holds; the server's paths with `/` (`feedback`, the ssh key); `source.json` and ffmpeg's concat list
+  with `/`; a log's lines read across `\r\n` (`jobs.tail`); a page leaving
+  mid-video no traceback (WinError 10053); `learn` without git.
+- The tests: their POSIX habits skipped where they need `sh`, `cp`, rsync, symlinks or git, else made portable.
+
+Checked natively in `D:\vbs-native`:
+- `uv run pytest -q`: 1,157 pass, 52 skipped (WSL2: 1,209 pass).
+- Speed on the 3-minute clip, the same code: 525 s against WSL2's 517 s (+1.7%; the clip in Ubuntu's file system there).
+  Tracking 4.0 min against 3.7, jerseys 1.5 against 1.1 (an OCR call 27 ms against 15.5, both on CUDA, the same
+  onnxruntime and cuDNN: Windows' cost per call), the rest within seconds.
+- Outputs: the same files; the same rally split in two as at the audit (6 rallies against 5, 3-3 against 2-3), the
+  same 9,000 ball rows and 54 contacts: ffmpeg's pixels (point 13), not Windows'.
+- The app on its own port: Diagnostics (the GPU, 34 GB, the load, git missing with its winget line), a minute of the
+  clip imported, a stop killing ffmpeg and the pipeline, the analysis run again to its end, the review opened in a
+  browser, an answer applied, the export zipped (19 files, `/` paths, the voice).
+- The server: Windows' OpenSSH with the key under `%USERPROFILE%\.ssh` (a key others can read is refused, as on
+  `\\wsl.localhost`), `transfer.py` pulling a file (the same bytes and time) and a dry run of a push (25 lines,
+  nothing written). Not done: a real upload or backup, which writes to the owner's server.
+- Not opened: the app's own window (`uv run stats`): it opens in the owner's Edge or Chrome, the same command as
+  under WSL2 without `cmd.exe start`.
 
 ## 8. Installers
 
@@ -346,3 +380,7 @@ One line per session: date, what was done, what is next.
   menus, another camera's in general with "Calibrer la caméra"); what to bring as boxes to tick (not kept); once before
   the first match (the card, 2 h at home). Read at 390 px without horizontal scroll, light and dark, and at 1280 px.
   Next: step 7.
+- 26 Nov: step 7 done but a real upload and backup from Windows (read-only up to the server): the app and the pipeline
+  on Windows itself (`procs.py`, `transfer.py`, `decode.popen`, onnxruntime on the GPU, the encodings, the paths),
+  native tests 1,157 pass and 52 skipped, the 3-minute clip in 525 s against WSL2's 517 s, its outputs a rally apart by
+  ffmpeg's version; import, stop, run, review, apply and export through the app natively. Next: step 8.

@@ -35,8 +35,8 @@ def match_dir(name: str) -> Path:
 
 def frames(name: str) -> None:
     """Decode the match's video at FPS, scaled on the GPU, into a uint8 memmap (N, HEIGHT, WIDTH, 3)."""
-    video = json.loads((match_dir(name) / "source.json").read_text())["video"]
-    probe = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", video], capture_output=True, text=True, check=True)
+    video = json.loads((match_dir(name) / "source.json").read_text(encoding="utf-8"))["video"]
+    probe = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", video], capture_output=True, text=True, check=True, encoding="utf-8", errors="replace")
     total = int(float(probe.stdout) * FPS) + FPS
     out = OUT / name
     out.mkdir(parents=True, exist_ok=True)
@@ -52,7 +52,7 @@ def frames(name: str) -> None:
             if n % (FPS * 600) == 0:
                 print(f"{n / FPS / 60:.0f} min in {time.time() - start:.0f} s", flush=True)
     store.flush()
-    (out / "frames.json").write_text(json.dumps({"count": n, "fps": FPS}))
+    (out / "frames.json").write_text(json.dumps({"count": n, "fps": FPS}), encoding="utf-8")
     print(f"{n} frames, {time.time() - start:.0f} s")
 
 
@@ -76,7 +76,7 @@ PLAY_AFTER_S, DEAD_AFTER_S = 0.5, 3.0
 
 def load(name: str) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """The frames, each clip start's label (1 play) and whether its label is sure."""
-    count = json.loads((OUT / name / "frames.json").read_text())["count"]
+    count = json.loads((OUT / name / "frames.json").read_text(encoding="utf-8"))["count"]
     store = np.load(OUT / name / "frames.npy", mmap_mode="r")[:count]
     middle = (np.arange(count - T + 1) + T / 2) / FPS
     label, sure = np.zeros(len(middle), np.int64), np.ones(len(middle), bool)
@@ -172,7 +172,7 @@ def train(names: list[str], test: str, wide: bool, steps: int, bs: int, lr: floa
     model.save_pretrained(out)
     starts, p = probabilities(model, test_store, size)
     np.savez(out / f"{test}.npz", starts=starts, p=p, fps=FPS, T=T)
-    (out / "log.json").write_text(json.dumps({"train": names, "test": test, "size": size, "steps": steps, "bs": bs, "lr": lr, "log": log}, indent=1))
+    (out / "log.json").write_text(json.dumps({"train": names, "test": test, "size": size, "steps": steps, "bs": bs, "lr": lr, "log": log}, indent=1), encoding="utf-8")
     report(f"final {test}", p[test_sure[starts]], test_label[starts][test_sure[starts]])
 
 

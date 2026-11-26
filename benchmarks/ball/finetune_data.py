@@ -36,8 +36,8 @@ NATIVE_W = 3840
 
 
 def match_info(match: str) -> tuple[Path, dict]:
-    source = json.loads((MATCHES / match / "source.json").read_text())
-    return Path(source["video"]), json.loads((TRUTH / match / "truth.json").read_text())
+    source = json.loads((MATCHES / match / "source.json").read_text(encoding="utf-8"))
+    return Path(source["video"]), json.loads((TRUTH / match / "truth.json").read_text(encoding="utf-8"))
 
 
 def rally_spans(truth: dict) -> list[tuple[int, int, int]]:
@@ -59,7 +59,7 @@ def clip_spans(match: str, truth: dict, spans: list[tuple[int, int, int]], total
     """Random clips of dead time: clear of every pipeline rally and every checked span by 2 s."""
     fps = truth["fps"]
     busy = [(a - 2 * fps, b + 2 * fps) for _, a, b in spans]
-    for line in (MATCHES / match / "rallies.csv").read_text().splitlines()[1:]:
+    for line in (MATCHES / match / "rallies.csv").read_text(encoding="utf-8").splitlines()[1:]:
         s, e = line.split(",")[:2]
         busy.append((int(s) - 2 * fps, int(e) + 2 * fps))
     length = round(CLIP_S * fps)
@@ -180,7 +180,7 @@ def main() -> None:
     clips = clip_spans(args.match, truth, spans, total)
     jobs = [(f"rally_{k}", a, b) for k, a, b in chosen(spans)] + [(f"clip_{a}", a, b) for a, b in clips]
     (OUT / args.match).mkdir(parents=True, exist_ok=True)
-    (OUT / args.match / "jobs.json").write_text(json.dumps(jobs))
+    (OUT / args.match / "jobs.json").write_text(json.dumps(jobs), encoding="utf-8")
     if args.limit:
         jobs = jobs[: args.limit] + [j for j in jobs if j[0].startswith("clip")][: args.limit]
     random.Random(1).shuffle(jobs)

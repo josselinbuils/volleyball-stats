@@ -38,7 +38,7 @@ class TestImport:
 
         video = probe(tmp_path / "data" / name / f"{name}.mp4")
         assert video.frames == 150
-        saved = json.loads((tmp_path / "outputs" / name / "teams.json").read_text())
+        saved = json.loads((tmp_path / "outputs" / name / "teams.json").read_text(encoding="utf-8"))
         assert saved["date"] == "2026-11-02"
         assert [t["name"] for t in saved["teams"]] == ["AVIA 01", "ASPOM 02"]
         assert saved["teams"][1]["colour"]
@@ -93,7 +93,7 @@ class TestImport:
         (tmp_path / "tagged.mp4").replace(first)
         self.run(monkeypatch, tmp_path, str(card), "--teams", "A,B")
 
-        filmed = json.loads((tmp_path / "outputs" / "2026-11-02-a-vs-b" / lens.CAMERA).read_text())
+        filmed = json.loads((tmp_path / "outputs" / "2026-11-02-a-vs-b" / lens.CAMERA).read_text(encoding="utf-8"))
         assert filmed == {"model": "Apple iPhone 15", "size": [64, 36], "fps": 25.0}
 
     def test_refuses_a_team_without_a_name(self, tmp_path, monkeypatch):
@@ -113,17 +113,18 @@ class TestConcatList:
     chapters = [Chapter(import_match.Path(f"/c/{k}.mp4"), 10.0, 0) for k in range(3)]
 
     def test_lists_every_chapter_without_a_cut(self):
-        assert concat_list(self.chapters, None, None) == "file '/c/0.mp4'\nfile '/c/1.mp4'\nfile '/c/2.mp4'\n"
+        assert concat_list(self.chapters, None, None) == "".join(f"file '{import_match.Path(f'/c/{k}.mp4').resolve().as_posix()}'\n" for k in range(3))
 
     def test_leaves_out_the_chapters_outside_the_cut_and_cuts_inside_the_others(self):
-        assert concat_list(self.chapters, 12.5, 25.0) == "file '/c/1.mp4'\ninpoint 2.500\nfile '/c/2.mp4'\noutpoint 5.000\n"
+        c = [import_match.Path(f"/c/{k}.mp4").resolve().as_posix() for k in range(3)]
+        assert concat_list(self.chapters, 12.5, 25.0) == f"file '{c[1]}'\ninpoint 2.500\nfile '{c[2]}'\noutpoint 5.000\n"
 
     def test_previews_inside_the_chapter_holding_the_time(self, monkeypatch):
         asked = []
         monkeypatch.setattr(import_match.subprocess, "run", lambda command, **_: asked.append(command) or subprocess.CompletedProcess(command, 0, b"\xff\xd8"))
         for at in (12.5, 30.0):
             import_match.frame_at(self.chapters, at)
-        assert [(c[c.index("-i") + 1], c[c.index("-ss") + 1]) for c in asked] == [("/c/1.mp4", "2.50"), ("/c/2.mp4", "10.00")]
+        assert [(c[c.index("-i") + 1], c[c.index("-ss") + 1]) for c in asked] == [(str(import_match.Path("/c/1.mp4")), "2.50"), (str(import_match.Path("/c/2.mp4")), "10.00")]
 
     def test_quotes_an_apostrophe(self):
         assert "it'\\''s" in concat_list([Chapter(import_match.Path("/it's.mp4"), 1.0, 0)], None, None)

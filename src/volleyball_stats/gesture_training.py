@@ -81,7 +81,7 @@ def sources(match: Path) -> list[tuple[Path, Path]]:
     checked, the pipeline's tables and the video here."""
     found = []
     for source in sorted(match.parent.glob(f"*/{files.SOURCE}")):
-        folder, video = source.parent, ROOT / json.loads(source.read_text())["video"]
+        folder, video = source.parent, ROOT / json.loads(source.read_text(encoding="utf-8"))["video"]
         if video.exists() and (folder / "actions.csv").exists() and truth(folder, 50.0) is not None:
             found.append((folder, video))
     return found
@@ -94,12 +94,12 @@ def signature(found: list[tuple[Path, Path]]) -> dict[str, str]:
 
 def trained(folder: Path) -> dict:
     path = folder / TRAINED
-    return json.loads(path.read_text()) if path.exists() and gesture.stamp(folder) is not None else {}
+    return json.loads(path.read_text(encoding="utf-8")) if path.exists() and gesture.stamp(folder) is not None else {}
 
 
 def refused(folder: Path) -> dict[str, str] | None:
     path = folder / REFUSED
-    return json.loads(path.read_text())["matches"] if path.exists() else None
+    return json.loads(path.read_text(encoding="utf-8"))["matches"] if path.exists() else None
 
 
 def due(match: Path) -> list[tuple[Path, Path]]:
@@ -117,12 +117,12 @@ def contacts(match: Path, video: Path) -> list[dict]:
     the pipeline's tables (the types there the rules')."""
     path = match / gesture.FILE
     if path.exists():
-        return json.loads(path.read_text())["contacts"]
+        return json.loads(path.read_text(encoding="utf-8"))["contacts"]
     from volleyball_stats import attribution, ball3d, decode
     from volleyball_stats.court import Calibration
 
     fps = decode.fps(video)
-    calibration = Calibration.load(ROOT / json.loads((match / files.SOURCE).read_text())["court"])
+    calibration = Calibration.load(ROOT / json.loads((match / files.SOURCE).read_text(encoding="utf-8"))["court"])
     rows = learn.read_rows(match / "actions.csv")
     typed = [(int(r["frame"]), int(r["x"]), int(r["y"]), r["type"], r["side"]) for r in rows]
     touchers = [int(r["track"]) if r["track"] != "" else None for r in rows]
@@ -262,7 +262,7 @@ def learn_from(found: list[tuple[Path, Path]], outputs: Path, weights: Path, epo
     missing = []
     for (m, v), t in zip(found, tables):
         index = cache / m.name / "index.json"
-        known = json.loads(index.read_text())["keys"] if index.exists() else {}
+        known = json.loads(index.read_text(encoding="utf-8"))["keys"] if index.exists() else {}
         missing.append(sum(gesture.key(c) not in known for c in t))
     labelled = [int((y >= 0).sum()) for y in ys]
     total = sum(labelled)

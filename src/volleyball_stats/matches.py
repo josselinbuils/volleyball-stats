@@ -34,12 +34,12 @@ import urllib.parse
 import urllib.request
 import zipfile
 from datetime import date
-from pathlib import Path
+from pathlib import Path, PurePath, PurePosixPath
 
 import cv2
 import numpy as np
 
-from volleyball_stats import club_settings, files, jobs, points, tables, timeline, video_copies, web
+from volleyball_stats import club_settings, files, jobs, points, tables, timeline, transfer, video_copies, web
 from volleyball_stats.web import CLUB, club_page
 
 TEMPLATE = Path(__file__).with_name("matches_site")
@@ -106,7 +106,7 @@ def update_stages(outputs: Path, names: list[str]) -> jobs.Stages:
 
 def page_of(folder: Path) -> dict:
     """The data.js of the match page in `folder`."""
-    text = (folder / "data.js").read_text()
+    text = (folder / "data.js").read_text(encoding="utf-8")
     return json.loads(text[text.index("=") + 1 :].strip().rstrip(";"))
 
 
@@ -216,7 +216,7 @@ def link_list(folder: Path) -> None:
     """The match page in `folder`, and its video/ one, told where the list is: it links back to it."""
     for index, up in ((folder / "index.html", "../"), (folder / "video" / "index.html", "../../")):
         if index.exists():
-            page = LIST_TAG.sub("", index.read_text())
+            page = LIST_TAG.sub("", index.read_text(encoding="utf-8"))
             tag = f'    <meta name="list" content="{up}" />\n'
             _save_if_changed(index, re.sub(r"[ \t]*</head>", lambda _: tag + "  </head>", page, count=1).encode())
 
@@ -231,7 +231,7 @@ def share(folder: Path, url: str, title: str, description: str, card: np.ndarray
         tags["og:site_name"] = site_name
     lines = [f'    <meta property="{key}" content="{html.escape(str(value))}" />\n' for key, value in tags.items()] + ['    <meta name="twitter:card" content="summary_large_image" />\n']
     index = folder / "index.html"
-    page = SHARED_TAGS.sub("", index.read_text())
+    page = SHARED_TAGS.sub("", index.read_text(encoding="utf-8"))
     page = re.sub(r"<title>.*?</title>", lambda _: f"<title>{html.escape(title, quote=False)}</title>", page, count=1)
     page = re.sub(r'(<meta name="description" content=")[^"]*', lambda m: m.group(1) + html.escape(description), page, count=1)
     _save_if_changed(index, re.sub(r"[ \t]*</head>", lambda _: "".join(lines) + "  </head>", page, count=1).encode())
@@ -282,9 +282,9 @@ def build(site: Path, theme: str = CLUB, url: str | None = None, retired: list[s
     text = json.dumps({"matches": matches, "club": club}, separators=(",", ":"), ensure_ascii=False)
     # Loaded with its hash in its URL, as data.js: a CDN caching it by URL serves each list its own.
     v = hashlib.sha256(text.encode()).hexdigest()[:10]
-    (site / "matches.js").write_text(f"window.MATCHES = {text};\n")
+    (site / "matches.js").write_text(f"window.MATCHES = {text};\n", encoding="utf-8")
     index = site / "index.html"
-    index.write_text(index.read_text().replace('src="matches.js"', f'src="matches.js?v={v}"'))
+    index.write_text(index.read_text(encoding="utf-8").replace('src="matches.js"', f'src="matches.js?v={v}"'), encoding="utf-8")
     for match in matches:
         link_list(site / match["path"])
     if url:
@@ -311,7 +311,7 @@ def share_code(site: Path) -> None:
         own, scene = page / ASSETS, page / SCENE3D
         if not own.is_dir() and not scene.exists():
             continue
-        text = index.read_text()
+        text = index.read_text(encoding="utf-8")
         for path in sorted(own.glob("*")) if own.is_dir() else []:
             if path.is_file() and path.suffix != ".gz" and not (shared / path.name).exists():
                 shutil.copy2(path, shared / path.name)
@@ -334,7 +334,7 @@ def retire_code(site: Path, today: date | None = None) -> list[str]:
     after: a page loaded before an upload still finds its 3D view. Those named again lose their date. Returns those removed."""
     today = today or date.today()
     shared = site / ASSETS
-    named = {name for index in site.rglob("index.html") for name in ASSET_NAMES.findall(index.read_text())}
+    named = {name for index in site.rglob("index.html") for name in ASSET_NAMES.findall(index.read_text(encoding="utf-8"))}
     path = shared / RETIRED
     retired = files.read_json(path, {})
     kept, removed = {}, []
@@ -425,14 +425,14 @@ def write_redirects(site: Path, redirects: dict[str, str]) -> None:
         if old != new and not (site / old / "data.js").exists() and (site / new / "data.js").exists():
             latest[old] = new
     for old, new in latest.items():
-        page = (site / new / "index.html").read_text()
+        page = (site / new / "index.html").read_text(encoding="utf-8")
         tags = "".join(re.findall(r'<meta property="og:[^>]*>\s*', page))
         for folder, up in ((site / old, "../"), (site / old / "video", "../../")):
             folder.mkdir(parents=True, exist_ok=True)
             to = f"{up}{new}/{'video/' if up == '../../' else ''}"
             (folder / "index.html").write_text(
                 f'''<!doctype html><html><head><meta charset="UTF-8" /><meta name="robots" content="noindex, nofollow, noarchive" />{tags}<meta http-equiv="refresh" content="0; url={to}" /><script>location.replace({json.dumps(to)} + location.search + location.hash);</script></head><body><a href="{to}">{html.escape(new)}</a></body></html>
-'''
+''', encoding="utf-8"
             )
     files.write_text(site / REDIRECTS, json.dumps(latest, indent=1) + "\n")
 
@@ -502,7 +502,7 @@ def club_team(match: Path, theme: str) -> int:
     """The team of the `theme` club: for the app's (CLUB) one of its teams, else its name's first word; the first if
     both or neither are."""
     path = match / "teams.json"
-    names = [team["name"] or "" for team in json.loads(path.read_text())["teams"]] if path.exists() else []
+    names = [team["name"] or "" for team in json.loads(path.read_text(encoding="utf-8"))["teams"]] if path.exists() else []
     if theme == CLUB:
         club = club_settings.read()
         ours = [k for k, name in enumerate(names, 1) if name in ((club or {}).get("teams") or [])]
@@ -532,7 +532,7 @@ def fingerprint(password: str) -> str:
 
 def update_publish(match: Path, **changes) -> dict:
     path = match / PUBLISH
-    given = json.loads(path.read_text())
+    given = json.loads(path.read_text(encoding="utf-8"))
     config = {**given, **changes}
     # Rewritten unchanged, the match would look changed here and wait to be sent (`sync.changed`).
     if config != given:
@@ -588,7 +588,7 @@ def forget_former(folder: Path) -> None:
     for path in folder.glob(f"*/{PASSWORD}"):
         path.unlink()
     for path in folder.glob(f"*/{PUBLISH}"):
-        config = json.loads(path.read_text())
+        config = json.loads(path.read_text(encoding="utf-8"))
         if "videoKey" in config:
             del config["videoKey"]
             files.write_text(path, json.dumps(config, indent=2, ensure_ascii=False) + "\n")
@@ -616,11 +616,11 @@ def review_cut(match: Path) -> dict:
     path = next((p for p in (match / "review" / web.VIDEO_JS, match / "review" / "ball.js") if p.exists()), None)
     if not data.exists():
         return {"map": [], "camera": []}
-    text = data.read_text()
+    text = data.read_text(encoding="utf-8")
     page = json.loads(text[text.index("=") + 1 :].strip().rstrip(";"))
     samples = []
     if path is not None:
-        text = path.read_text()
+        text = path.read_text(encoding="utf-8")
         samples = json.loads(text[text.index("{") : text.rindex("}") + 1]).get("samples", [])
     page.setdefault("lineCalls", web.line_calls(page))
     return timeline.cut(page, np.array(samples, dtype=float).reshape(-1, 3))
@@ -656,7 +656,7 @@ def add_copies(match: Path, video: Path, share: jobs.Share = jobs.quiet, remake:
     """The video's copies made as the review now has them (`review_cut`), if one is missing or former, or with `remake`
     made otherwise, then listed (rename refuses a listed copy that is gone); a former one in the copies' folder removed. The
     share made told as it goes."""
-    config = json.loads((match / PUBLISH).read_text())
+    config = json.loads((match / PUBLISH).read_text(encoding="utf-8"))
     if not copies_missing(config) and not (remake and copies_stale(match, config)):
         return config
     listed = {key: Path(path).expanduser() for key in video_copies.COPIES if (path := config.get(key))}
@@ -669,7 +669,7 @@ def add_copies(match: Path, video: Path, share: jobs.Share = jobs.quiet, remake:
     return update_publish(match, **{key: str(path.resolve()) for key, path in made.items()})
 
 
-def key_command(service: Path, key: str) -> str:
+def key_command(service: PurePath, key: str) -> str:
     """The server's shell command making `key` the one that opens every match's video/ folder, then nginx reloaded: in the
     SERVICE container when the folder above `service` composes it, else on the server. The list is written in place, a
     container mounting it by its inode; nginx's map takes the line as a pattern of any folder."""
@@ -701,7 +701,7 @@ def install_key(config: dict, key: str) -> None:
     """`key` made the one opening the videos on `config`'s server (`key_command`)."""
     host_name, path = config["upload"].split(":", 1)
     ssh = ["ssh", *ssh_options(config["key"]), host_name]
-    subprocess.run([*ssh, key_command(Path(path).parent, key)], check=True, capture_output=True, timeout=60)
+    subprocess.run([*ssh, key_command(PurePosixPath(path).parent, key)], check=True, capture_output=True, timeout=60)
 
 
 def opens(url: str, key: str) -> bool:
@@ -721,7 +721,7 @@ def ensure_review_page(match: Path, video: Path, court: Path, theme: str) -> Non
 
 def make_voice(match: Path) -> None:
     """The commentary's missing audio (`voice.py`), which the build then takes; Kokoro is in the voice group only."""
-    run = subprocess.run(["uv", "run", "--group", "voice", "python", "-m", "volleyball_stats.voice", str(match.resolve())], cwd=Path(__file__).resolve().parents[2], capture_output=True, text=True)
+    run = subprocess.run(["uv", "run", "--group", "voice", "python", "-m", "volleyball_stats.voice", str(match.resolve())], cwd=Path(__file__).resolve().parents[2], capture_output=True, text=True, encoding="utf-8", errors="replace")
     if run.returncode:
         raise RuntimeError(f"voice: {(run.stderr.strip().splitlines() or [f'exit {run.returncode}'])[-1]}")
 
@@ -748,9 +748,9 @@ def counted(command: list[str], total: int | None, share: jobs.Share = jobs.quie
     a dry run of the same command first). CalledProcessError, its stderr kept, when it fails."""
     # The options before the paths, as the Mac's openrsync wants them.
     if total is None:
-        dry = subprocess.run([command[0], "--dry-run", "--itemize-changes", *command[1:]], check=True, capture_output=True, text=True)
+        dry = subprocess.run(transfer.local([command[0], "--dry-run", "--itemize-changes", *command[1:]]), check=True, capture_output=True, text=True, encoding="utf-8", errors="replace")
         total = files_to_send(dry.stdout)
-    process = subprocess.Popen([command[0], "--itemize-changes", *command[1:]], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    process = subprocess.Popen(transfer.local([command[0], "--itemize-changes", *command[1:]]), stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding="utf-8", errors="replace")
     errors: list[str] = []
     # Read apart, else a full pipe of errors would stop rsync.
     reader = threading.Thread(target=lambda: errors.extend(process.stderr), daemon=True)
@@ -878,9 +878,9 @@ def online(folder: Path) -> list[tuple[Path, Path, Path, dict]]:
     """The matches of `folder` whose page is online, with their video, court and publish.json."""
     found = []
     for path in sorted(folder.glob(f"*/{PUBLISH}")):
-        match, config = path.parent, json.loads(path.read_text())
+        match, config = path.parent, json.loads(path.read_text(encoding="utf-8"))
         if "video" in config and (match / files.SOURCE).exists() and hosted_folder(match, Path(config["site"]).expanduser()):
-            given = json.loads((match / files.SOURCE).read_text())
+            given = json.loads((match / files.SOURCE).read_text(encoding="utf-8"))
             found.append((match, Path(given["video"]), Path(given["court"]), config))
     return found
 
@@ -893,9 +893,9 @@ def first_uploads(folder: Path, names: list[str]) -> list[tuple[Path, Path, Path
         path = match / PUBLISH
         if not path.exists() or not (match / files.SOURCE).exists():
             continue
-        config = json.loads(path.read_text())
+        config = json.loads(path.read_text(encoding="utf-8"))
         if "video" in config and not hosted_folder(match, Path(config["site"]).expanduser()):
-            given = json.loads((match / files.SOURCE).read_text())
+            given = json.loads((match / files.SOURCE).read_text(encoding="utf-8"))
             found.append((match, Path(given["video"]), Path(given["court"]), config))
     return found
 
@@ -1017,7 +1017,7 @@ def send(hosted: list[tuple[Path, Path, Path, dict]], config: dict, site: Path, 
     # The video's copies of those built again only: a renewed page has none here (`mirror`), its online ones stay.
     copied = [paths[match.name].rstrip("/") for match, *_ in hosted if match not in renewed]
     # Pages another machine put online since the mirror (`mirror`) stay.
-    dry = subprocess.run(upload_command(config, site, copied, dry=True), check=True, capture_output=True, text=True)
+    dry = subprocess.run(transfer.local(upload_command(config, site, copied, dry=True)), check=True, capture_output=True, text=True, encoding="utf-8", errors="replace")
     missing = removed_pages(dry.stdout, rebuilt)
     if missing:
         raise RuntimeError(f"online but not here: {', '.join(missing)}: not uploaded")
@@ -1100,7 +1100,7 @@ def main() -> None:
             parser.error("--export needs --match")
         chosen = []
         for match in args.match:
-            given = json.loads((match / files.SOURCE).read_text())
+            given = json.loads((match / files.SOURCE).read_text(encoding="utf-8"))
             chosen.append((match, Path(given["video"]), Path(given["court"])))
         return export(chosen, args.theme, args.export, folder=args.folder)
 
@@ -1109,9 +1109,9 @@ def main() -> None:
         newer = sync.behind([args.host])
         if newer:
             raise SystemExit(f"newer on the server, from {newer[args.host.name]}: not uploaded")
-        return host(args.host, args.video, args.court, args.theme, json.loads((args.host / PUBLISH).read_text()))
+        return host(args.host, args.video, args.court, args.theme, json.loads((args.host / PUBLISH).read_text(encoding="utf-8")))
     if args.all:
-        given = [json.loads(p.read_text()) for p in sorted(args.all.glob(f"*/{PUBLISH}"))]
+        given = [json.loads(p.read_text(encoding="utf-8")) for p in sorted(args.all.glob(f"*/{PUBLISH}"))]
         config = next((c for c in given if c.get("upload") and c.get("site")), None)
         # --code alone: no match rebuilt.
         found = [h for h in online(args.all) if (not args.only and not args.code) or h[0].name in args.only]

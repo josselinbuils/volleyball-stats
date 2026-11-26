@@ -41,7 +41,7 @@ Contact = tuple[int, int, int]
 
 def read_track(path: Path) -> np.ndarray:
     """Ball position per frame, (frames, 2), NaN when not visible."""
-    with open(path) as f:
+    with open(path, encoding="utf-8") as f:
         rows = list(csv.DictReader(f))
     track = np.full((int(rows[-1]["frame"]) + 1, 2), np.nan)
     for row in rows:
@@ -197,9 +197,9 @@ def main() -> None:
     args.out.mkdir(parents=True, exist_ok=True)
     stem = args.track.stem.removesuffix("_ball")
     contacts, crossings = detect(read_track(args.track), args.fps, args.net_x)
-    with open(args.out / f"{stem}_contacts.csv", "w", newline="") as f:
+    with open(args.out / f"{stem}_contacts.csv", "w", newline="", encoding="utf-8") as f:
         csv.writer(f).writerows([["frame", "x", "y"], *contacts])
-    with open(args.out / f"{stem}_net.csv", "w", newline="") as f:
+    with open(args.out / f"{stem}_net.csv", "w", newline="", encoding="utf-8") as f:
         csv.writer(f).writerows([["frame"], *([t] for t in crossings)])
     print(f"{len(contacts)} contacts, {len(crossings)} net crossings")
 

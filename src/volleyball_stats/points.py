@@ -193,7 +193,7 @@ def points(typed: list[Typed], crossings: list[int], windows: list[tuple[int, in
 
 def write_points(path: Path, windows: list[tuple[int, int]], found: list[dict]) -> None:
     """points.csv: each rally's set, server, winner, reason and the score after it."""
-    with open(path, "w", newline="") as f:
+    with open(path, "w", newline="", encoding="utf-8") as f:
         out = csv.writer(f)
         out.writerow(["start_frame", "end_frame", "set", "server", "winner", "reason", "score_1", "score_2"])
         for (start, end), p in zip(windows, found):
@@ -218,20 +218,20 @@ def main() -> None:
     parser.add_argument("--fps", type=float, required=True, help="The video's frame rate")
     args = parser.parse_args()
 
-    with open(args.match / "rallies.csv") as f:
+    with open(args.match / "rallies.csv", encoding="utf-8") as f:
         rows = list(csv.DictReader(f))
     windows = [(int(r["start_frame"]), int(r["end_frame"])) for r in rows]
     lefts = [int(r.get("left") or 1) for r in rows]
     sets = [int(r.get("set") or 1) for r in rows]
-    with open(args.match / "actions.csv") as f:
+    with open(args.match / "actions.csv", encoding="utf-8") as f:
         typed = [(int(r["frame"]), int(r["x"]), int(r["y"]), r["type"], r["side"]) for r in csv.DictReader(f)]
-    with open(args.match / "net.csv") as f:
+    with open(args.match / "net.csv", encoding="utf-8") as f:
         crossings = [int(r["frame"]) for r in csv.DictReader(f)]
     calibration = Calibration.load(args.court) if args.court else None
     found = points(typed, crossings, windows, lefts, sets, args.fps, calibration)
     write_points(args.match / "points.csv", windows, found)
     teams_path = args.match / "teams.json"
-    given = json.loads(teams_path.read_text()).get("scores") or [] if teams_path.exists() else []
+    given = json.loads(teams_path.read_text(encoding="utf-8")).get("scores") or [] if teams_path.exists() else []
     print("\n".join(summary(found, given)))
     print(args.match / "points.csv")
 

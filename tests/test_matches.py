@@ -2,6 +2,8 @@ import gzip
 import hashlib
 import json
 import os
+import shlex
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -25,6 +27,12 @@ CURRENT = matches.video_copies.current
 
 
 @pytest.fixture(autouse=True)
+def rsync_commands(monkeypatch):
+    """The commands as written, whether rsync or its stand-in would run them here."""
+    monkeypatch.setattr(matches.transfer, "local", lambda command: command)
+
+
+@pytest.fixture(autouse=True)
 def placeholder_copies(monkeypatch):
     monkeypatch.setattr(matches.video_copies, "current", lambda key, path: path.exists())
 
@@ -34,21 +42,21 @@ class TestBuild:
         for name, date in (("old", "2026-09-01"), ("new", "2026-10-25")):
             (tmp_path / name).mkdir()
             data = {"name": name, "date": date, "teams": None, "rallies": [{"set": 1}, {"set": 2}, {"set": 2}]}
-            (tmp_path / name / "data.js").write_text(f"window.MATCH = {json.dumps(data)};\n")
+            (tmp_path / name / "data.js").write_text(f"window.MATCH = {json.dumps(data)};\n", encoding="utf-8")
 
         matches = build(tmp_path, "none")
 
         assert [(m["path"], m["sets"], m["rallies"]) for m in matches] == [("2026-10-25/", 2, 3), ("2026-09-01/", 2, 3)]
-        assert (tmp_path / "matches.js").read_text().startswith('window.MATCHES = {"matches":[{"path":"2026-10-25/"')
-        assert 'src="matches.js?v=' in (tmp_path / "index.html").read_text()
+        assert (tmp_path / "matches.js").read_text(encoding="utf-8").startswith('window.MATCHES = {"matches":[{"path":"2026-10-25/"')
+        assert 'src="matches.js?v=' in (tmp_path / "index.html").read_text(encoding="utf-8")
         assert not (tmp_path / "matches.html").exists()
 
     @staticmethod
     def page(site, folder, name, teams):
         (site / folder).mkdir(parents=True, exist_ok=True)
         data = {"name": name, "date": "2026-11-02", "teams": [{"name": t} for t in teams], "rallies": [{"set": 1}]}
-        (site / folder / "data.js").write_text(f"window.MATCH = {json.dumps(data)};\n")
-        (site / folder / "index.html").write_text('<meta property="og:title" content="M" /><p>page</p>')
+        (site / folder / "data.js").write_text(f"window.MATCH = {json.dumps(data)};\n", encoding="utf-8")
+        (site / folder / "index.html").write_text('<meta property="og:title" content="M" /><p>page</p>', encoding="utf-8")
 
     def test_a_page_whose_address_changed_redirects_from_the_old_one_keeping_what_the_link_carries(self, tmp_path):
         self.page(tmp_path, "2026-11-02-a-vs-b", "m", ["A", "B"])
@@ -57,22 +65,22 @@ class TestBuild:
         listed = build(tmp_path, "none")
 
         assert [m["path"] for m in listed] == ["2026-11-02-a-vs-c/"]
-        page = (tmp_path / "2026-11-02-a-vs-b" / "index.html").read_text()
+        page = (tmp_path / "2026-11-02-a-vs-b" / "index.html").read_text(encoding="utf-8")
         assert 'url=../2026-11-02-a-vs-c/"' in page and "location.search + location.hash" in page
         assert 'property="og:title"' in page and "noindex" in page
-        assert 'url=../../2026-11-02-a-vs-c/video/"' in (tmp_path / "2026-11-02-a-vs-b" / "video" / "index.html").read_text()
-        assert json.loads((tmp_path / "redirects.json").read_text()) == {"2026-11-02-a-vs-b": "2026-11-02-a-vs-c"}
+        assert 'url=../../2026-11-02-a-vs-c/video/"' in (tmp_path / "2026-11-02-a-vs-b" / "video" / "index.html").read_text(encoding="utf-8")
+        assert json.loads((tmp_path / "redirects.json").read_text(encoding="utf-8")) == {"2026-11-02-a-vs-b": "2026-11-02-a-vs-c"}
 
     def test_each_match_page_and_its_video_one_link_back_to_the_list_once(self, tmp_path):
         self.page(tmp_path, "2026-11-02-a-vs-b", "m", ["A", "B"])
         (tmp_path / "2026-11-02-a-vs-b" / "video").mkdir()
         for index in (tmp_path / "2026-11-02-a-vs-b" / "index.html", tmp_path / "2026-11-02-a-vs-b" / "video" / "index.html"):
-            index.write_text("<html><head>\n  </head><body></body></html>")
+            index.write_text("<html><head>\n  </head><body></body></html>", encoding="utf-8")
 
         build(tmp_path, "none")
         build(tmp_path, "none")
 
-        page, video = ((tmp_path / "2026-11-02-a-vs-b" / f).read_text() for f in ("index.html", "video/index.html"))
+        page, video = ((tmp_path / "2026-11-02-a-vs-b" / f).read_text(encoding="utf-8") for f in ("index.html", "video/index.html"))
         assert page.count('<meta name="list" content="../" />') == 1 and 'name="list"' not in page.replace('<meta name="list" content="../" />', "")
         assert video.count('<meta name="list" content="../../" />') == 1
 
@@ -82,7 +90,7 @@ class TestBuild:
         build(tmp_path, "none")
 
         assert not (tmp_path / "m").exists()
-        assert json.loads((tmp_path / "redirects.json").read_text()) == {}
+        assert json.loads((tmp_path / "redirects.json").read_text(encoding="utf-8")) == {}
 
     def test_a_second_change_sends_the_oldest_address_straight_to_the_latest(self, tmp_path):
         self.page(tmp_path, "2026-11-02-a-vs-b", "m", ["A", "C"])
@@ -91,8 +99,8 @@ class TestBuild:
 
         build(tmp_path, "none")
 
-        assert 'url=../2026-11-02-a-vs-d/"' in (tmp_path / "2026-11-02-a-vs-b" / "index.html").read_text()
-        assert 'url=../2026-11-02-a-vs-d/"' in (tmp_path / "2026-11-02-a-vs-c" / "index.html").read_text()
+        assert 'url=../2026-11-02-a-vs-d/"' in (tmp_path / "2026-11-02-a-vs-b" / "index.html").read_text(encoding="utf-8")
+        assert 'url=../2026-11-02-a-vs-d/"' in (tmp_path / "2026-11-02-a-vs-c" / "index.html").read_text(encoding="utf-8")
 
     def test_a_match_taking_an_old_address_replaces_its_redirect(self, tmp_path):
         self.page(tmp_path, "2026-11-02-a-vs-b", "m", ["A", "C"])
@@ -102,13 +110,13 @@ class TestBuild:
         listed = build(tmp_path, "none")
 
         assert sorted(m["path"] for m in listed) == ["2026-11-02-a-vs-b/", "2026-11-02-a-vs-c/"]
-        assert json.loads((tmp_path / "redirects.json").read_text()) == {}
+        assert json.loads((tmp_path / "redirects.json").read_text(encoding="utf-8")) == {}
 
     def test_compresses_the_text_files_once_and_drops_the_copies_of_files_gone(self, tmp_path):
         (tmp_path / "m").mkdir()
         big, small = tmp_path / "m" / "players.js", tmp_path / "m" / "tiny.js"
-        big.write_text("x" * 5000)
-        small.write_text("x")
+        big.write_text("x" * 5000, encoding="utf-8")
+        small.write_text("x", encoding="utf-8")
         (tmp_path / "m" / "video.mp4").write_bytes(b"0" * 5000)
         (tmp_path / "m" / "old.js.gz").write_bytes(b"")
 
@@ -126,7 +134,7 @@ class TestBuild:
         for name, rallies in (("2026-10-25-aspom-begles-vs-talence", 1), ("full_match", 2), ("unnamed", 1)):
             (tmp_path / name).mkdir()
             data = {"name": name, "date": "2026-10-25" if name != "unnamed" else None, "teams": teams if name != "unnamed" else None, "rallies": [{"set": 1}] * rallies}
-            (tmp_path / name / "data.js").write_text(f"window.MATCH = {json.dumps(data)};\n")
+            (tmp_path / name / "data.js").write_text(f"window.MATCH = {json.dumps(data)};\n", encoding="utf-8")
 
         matches = build(tmp_path, "none")
 
@@ -138,7 +146,7 @@ class TestBuild:
         for folder, name in (("one", "_"), ("two", "club")):
             (tmp_path / folder).mkdir()
             data = {"name": name, "date": None, "teams": None, "rallies": [{"set": 1}]}
-            (tmp_path / folder / "data.js").write_text(f"window.MATCH = {json.dumps(data)};\n")
+            (tmp_path / folder / "data.js").write_text(f"window.MATCH = {json.dumps(data)};\n", encoding="utf-8")
 
         matches = build(tmp_path, "none")
 
@@ -149,17 +157,17 @@ class TestBuild:
 class TestShare:
     def page(self, folder, **extra):
         folder.mkdir(parents=True)
-        (folder / "index.html").write_text('<html><head><meta name="description" content="old" /><title>Match</title></head></html>')
+        (folder / "index.html").write_text('<html><head><meta name="description" content="old" /><title>Match</title></head></html>', encoding="utf-8")
         data = {"name": "m", "date": "2026-10-29", "teams": [{"name": "A & B", "colour": "#151515"}, {"name": "C", "colour": "#ff0000"}], "scores": ["25-23", "12-25", "25-18"], "rallies": [], **extra}
-        (folder / "data.js").write_text(f"window.MATCH = {json.dumps(data)};\n")
+        (folder / "data.js").write_text(f"window.MATCH = {json.dumps(data)};\n", encoding="utf-8")
 
     def test_a_match_says_its_teams_score_and_picture_at_its_address_again_after_a_rebuild(self, tmp_path):
         self.page(tmp_path / "m")
         matches.share_match(tmp_path / "m", "https://x.dev/volleyball/m/")
-        first = (tmp_path / "m" / "index.html").read_text()
+        first = (tmp_path / "m" / "index.html").read_text(encoding="utf-8")
         matches.share_match(tmp_path / "m", "https://x.dev/volleyball/m/")
 
-        assert (tmp_path / "m" / "index.html").read_text() == first
+        assert (tmp_path / "m" / "index.html").read_text(encoding="utf-8") == first
         assert first.count('property="og:title"') == 1
         assert "<title>A &amp; B - C · 2-1</title>" in first
         assert 'content="25-23, 12-25, 25-18 · 29 octobre 2026 · Statistiques et replay du match"' in first
@@ -177,10 +185,10 @@ class TestShare:
     def test_the_site_is_tagged_only_with_an_address(self, tmp_path):
         self.page(tmp_path / "m")
         build(tmp_path)
-        assert "og:title" not in (next(tmp_path.glob("*/data.js")).parent / "index.html").read_text()
+        assert "og:title" not in (next(tmp_path.glob("*/data.js")).parent / "index.html").read_text(encoding="utf-8")
         build(tmp_path, url="https://x.dev/volleyball")
-        assert 'content="https://x.dev/volleyball/2026-10-29-a-b-vs-c/"' in (next(tmp_path.glob("*/data.js")).parent / "index.html").read_text()
-        assert 'content="https://x.dev/volleyball/preview.png?v=' in (tmp_path / "index.html").read_text()
+        assert 'content="https://x.dev/volleyball/2026-10-29-a-b-vs-c/"' in (next(tmp_path.glob("*/data.js")).parent / "index.html").read_text(encoding="utf-8")
+        assert 'content="https://x.dev/volleyball/preview.png?v=' in (tmp_path / "index.html").read_text(encoding="utf-8")
 
 
 class TestHost:
@@ -342,11 +350,11 @@ class TestHostAll:
             match = tmp_path / "matches" / name
             match.mkdir(parents=True)
             (tmp_path / f"{name}.mp4").write_bytes(b"")
-            (match / "source.json").write_text(json.dumps({"video": str(tmp_path / f"{name}.mp4"), "court": "court.json"}))
+            (match / "source.json").write_text(json.dumps({"video": str(tmp_path / f"{name}.mp4"), "court": "court.json"}), encoding="utf-8")
             config = {"site": str(site), "url": "https://example.org/volleyball/", "upload": "host:/site/", "key": "key", "video": video, **(copies if video else {})}
-            (match / "publish.json").write_text(json.dumps(config))
+            (match / "publish.json").write_text(json.dumps(config), encoding="utf-8")
             (site / name).mkdir(parents=True)
-            (site / name / "data.js").write_text(f"window.MATCH = {json.dumps({'name': name, 'rallies': []})};\n")
+            (site / name / "data.js").write_text(f"window.MATCH = {json.dumps({'name': name, 'rallies': []})};\n", encoding="utf-8")
             hosted.append((match, tmp_path / f"{name}.mp4", Path("court.json"), config))
         monkeypatch.setattr(matches, "video_key", lambda outputs: "abc")
         monkeypatch.setattr(matches, "head_commit", lambda: "c0ffee")
@@ -355,7 +363,7 @@ class TestHostAll:
         def publish(*args):
             built.append((args[0].name, args[4]["footage"], args[5]))
             (args[5] / "data.js").parent.mkdir(parents=True, exist_ok=True)
-            (args[5] / "data.js").write_text(f"window.MATCH = {json.dumps({'name': args[0].name, 'rallies': []})};\n")
+            (args[5] / "data.js").write_text(f"window.MATCH = {json.dumps({'name': args[0].name, 'rallies': []})};\n", encoding="utf-8")
             return {}, {}
 
         monkeypatch.setattr(matches.web, "publish", publish)
@@ -373,7 +381,7 @@ class TestHostAll:
         hosted, _, _, _ = self.matches_of(tmp_path, monkeypatch)
         # Chose nothing yet: never put online.
         (tmp_path / "matches" / "third").mkdir()
-        (tmp_path / "matches" / "third" / "publish.json").write_text(json.dumps({"site": hosted[0][3]["site"]}))
+        (tmp_path / "matches" / "third" / "publish.json").write_text(json.dumps({"site": hosted[0][3]["site"]}), encoding="utf-8")
 
         assert matches.online(tmp_path / "matches") == hosted
 
@@ -390,7 +398,7 @@ class TestHostAll:
         hosted, built, ran, site = self.matches_of(tmp_path, monkeypatch)
         matches.host_all(hosted, "aspom")
         built.clear(), ran.clear()
-        (hosted[1][0] / "identity_answers.json").write_text("{}")
+        (hosted[1][0] / "identity_answers.json").write_text("{}", encoding="utf-8")
 
         matches.host_all(hosted, "aspom")
 
@@ -404,7 +412,7 @@ class TestHostAll:
         matches.host_all(hosted, "aspom")
         built.clear()
         (site / "first" / "video" / "data.js").unlink()
-        (site / "second" / matches.MADE).write_text(json.dumps({"from": "other"}))
+        (site / "second" / matches.MADE).write_text(json.dumps({"from": "other"}), encoding="utf-8")
 
         matches.host_all(hosted, "aspom")
 
@@ -417,7 +425,7 @@ class TestHostAll:
 
         stages = [line for line in capsys.readouterr().out.splitlines() if line.startswith("::stage ")]
         assert stages == ["::stage mirror", "::stage match 1/2", "::stage match 2/2", "::stage upload"]
-        took = json.loads((tmp_path / matches.TIMINGS).read_text())
+        took = json.loads((tmp_path / matches.TIMINGS).read_text(encoding="utf-8"))
         assert {"mirror", "match:first", "match:second", "upload"} <= set(took)
 
     def test_nothing_is_built_nor_sent_when_a_match_cannot_be(self, tmp_path, monkeypatch):
@@ -445,13 +453,13 @@ class TestHostAll:
         for name, data in (("theirs", {"name": "theirs", "rallies": []}), ("older", {"name": "older", "rallies": [], "format": matches.web.FORMAT + 1})):
             (site / name / "video").mkdir(parents=True)
             for page in (site / name, site / name / "video"):
-                (page / "data.js").write_text(f"window.MATCH = {json.dumps(data)};\n")
+                (page / "data.js").write_text(f"window.MATCH = {json.dumps(data)};\n", encoding="utf-8")
 
         matches.host_all(hosted[1:], "aspom")
 
         renewed = sorted(entry[1] for entry in built if entry[0] == "renewed")
         assert renewed == [site / "first", site / "theirs", site / "theirs" / "video"]
-        assert json.loads((site / matches.CODE).read_text()) == {"code": matches.code_stamps(), "commit": "c0ffee", "format": matches.web.FORMAT}
+        assert json.loads((site / matches.CODE).read_text(encoding="utf-8")) == {"code": matches.code_stamps(), "commit": "c0ffee", "format": matches.web.FORMAT}
 
     def test_puts_the_code_alone_online(self, tmp_path, monkeypatch):
         hosted, built, ran, site = self.matches_of(tmp_path, monkeypatch)
@@ -462,7 +470,7 @@ class TestHostAll:
 
     def test_never_puts_back_the_code_of_an_older_app(self, tmp_path, monkeypatch):
         hosted, built, ran, site = self.matches_of(tmp_path, monkeypatch)
-        (site / matches.CODE).write_text(json.dumps({"code": {"page": "newer"}, "commit": "beef"}))
+        (site / matches.CODE).write_text(json.dumps({"code": {"page": "newer"}, "commit": "beef"}), encoding="utf-8")
         monkeypatch.setattr(matches, "newer_code", lambda site: True)
 
         with pytest.raises(RuntimeError, match="newer code online"):
@@ -475,10 +483,10 @@ class TestSharedCode:
     @staticmethod
     def page(folder, code="a"):
         (folder / "assets").mkdir(parents=True)
-        (folder / "assets" / f"index-{code}.js").write_text(f"code {code}")
+        (folder / "assets" / f"index-{code}.js").write_text(f"code {code}", encoding="utf-8")
         (folder / "assets" / f"index-{code}.js.gz").write_bytes(b"gz")
-        (folder / "scene3d.js").write_text(f"three {code}")
-        (folder / "index.html").write_text(f'<head>\n<script src="./assets/index-{code}.js"></script>\n  </head>')
+        (folder / "scene3d.js").write_text(f"three {code}", encoding="utf-8")
+        (folder / "index.html").write_text(f'<head>\n<script src="./assets/index-{code}.js"></script>\n  </head>', encoding="utf-8")
 
     def test_every_page_loads_its_code_once_from_the_site_s_folder(self, tmp_path):
         for folder in (tmp_path / "one", tmp_path / "one" / "video", tmp_path / "two"):
@@ -489,9 +497,9 @@ class TestSharedCode:
         scene = f"scene3d-{hashlib.sha256(b'three a').hexdigest()[:10]}.js"
         assert sorted(p.name for p in (tmp_path / "assets").iterdir()) == ["index-a.js", scene]
         assert not (tmp_path / "one" / "assets").exists() and not (tmp_path / "one" / "scene3d.js").exists()
-        page = (tmp_path / "one" / "video" / "index.html").read_text()
+        page = (tmp_path / "one" / "video" / "index.html").read_text(encoding="utf-8")
         assert 'src="../../assets/index-a.js"' in page and f'<meta name="scene3d" content="../../assets/{scene}" />' in page
-        assert 'src="../assets/index-a.js"' in (tmp_path / "two" / "index.html").read_text()
+        assert 'src="../assets/index-a.js"' in (tmp_path / "two" / "index.html").read_text(encoding="utf-8")
 
     def test_a_page_built_again_takes_the_new_code_its_old_one_kept_a_week(self, tmp_path):
         from datetime import date, timedelta
@@ -499,12 +507,12 @@ class TestSharedCode:
         self.page(tmp_path / "one")
         matches.share_code(tmp_path)
         self.page(tmp_path / "two", "b")
-        (tmp_path / "one" / "index.html").write_text('<script src="../assets/index-b.js"></script>')
+        (tmp_path / "one" / "index.html").write_text('<script src="../assets/index-b.js"></script>', encoding="utf-8")
         matches.share_code(tmp_path)
         day = date(2026, 11, 24)
 
         assert matches.retire_code(tmp_path, day) == []
-        assert set(json.loads((tmp_path / "assets" / matches.RETIRED).read_text())) == {"index-a.js", next(p.name for p in (tmp_path / "assets").glob("scene3d-*.js") if "three a" == p.read_text())}
+        assert set(json.loads((tmp_path / "assets" / matches.RETIRED).read_text(encoding="utf-8"))) == {"index-a.js", next(p.name for p in (tmp_path / "assets").glob("scene3d-*.js") if "three a" == p.read_text(encoding="utf-8"))}
         assert matches.retire_code(tmp_path, day + timedelta(days=matches.RETIRED_DAYS)) != []
         assert not (tmp_path / "assets" / "index-a.js").exists() and (tmp_path / "assets" / "index-b.js").exists()
         assert not (tmp_path / "assets" / matches.RETIRED).exists()
@@ -513,9 +521,9 @@ class TestSharedCode:
         from datetime import date
 
         (tmp_path / "assets").mkdir()
-        (tmp_path / "assets" / "x.js").write_text("")
+        (tmp_path / "assets" / "x.js").write_text("", encoding="utf-8")
         matches.retire_code(tmp_path, date(2026, 11, 1))
-        (tmp_path / "index.html").write_text('<script src="./assets/x.js"></script>')
+        (tmp_path / "index.html").write_text('<script src="./assets/x.js"></script>', encoding="utf-8")
 
         assert matches.retire_code(tmp_path, date(2026, 11, 20)) == [] and not (tmp_path / "assets" / matches.RETIRED).exists()
 
@@ -532,9 +540,9 @@ class TestSharedCode:
         monkeypatch.setattr(git_check, "_git", lambda root, *args: subprocess.CompletedProcess(args, ancestors[args[-2:]]))
         assert not matches.newer_code(tmp_path)
         for commit, newer in (("beef", False), ("cafe", True)):
-            (tmp_path / matches.CODE).write_text(json.dumps({"code": {"page": "other"}, "commit": commit}))
+            (tmp_path / matches.CODE).write_text(json.dumps({"code": {"page": "other"}, "commit": commit}), encoding="utf-8")
             assert matches.newer_code(tmp_path) is newer
-        (tmp_path / matches.CODE).write_text(json.dumps({"code": matches.code_stamps(), "commit": "cafe"}))
+        (tmp_path / matches.CODE).write_text(json.dumps({"code": matches.code_stamps(), "commit": "cafe"}), encoding="utf-8")
         assert not matches.newer_code(tmp_path)
 
 
@@ -543,14 +551,14 @@ class TestEnsurePublish:
     def imported(tmp_path, name="2026-11-02-avia-1-vs-aspom-2"):
         match = tmp_path / "outputs" / "matches" / name
         match.mkdir(parents=True)
-        (match / "teams.json").write_text(json.dumps({"teams": [{"name": "AVIA 1"}, {"name": "ASPOM 2"}]}))
+        (match / "teams.json").write_text(json.dumps({"teams": [{"name": "AVIA 1"}, {"name": "ASPOM 2"}]}), encoding="utf-8")
         return match, tmp_path / "data" / name / f"{name}.mp4"
 
     @staticmethod
     def hosted(tmp_path):
         other = tmp_path / "outputs" / "matches" / "2026-10-29-a-vs-b"
         other.mkdir(parents=True)
-        (other / matches.PUBLISH).write_text(json.dumps({"site": "outputs/hosted", "url": "https://example.org/", "upload": "host:/site/", "key": "key", "light": "old.mp4", "club": 1}))
+        (other / matches.PUBLISH).write_text(json.dumps({"site": "outputs/hosted", "url": "https://example.org/", "upload": "host:/site/", "key": "key", "light": "old.mp4", "club": 1}), encoding="utf-8")
 
     def test_takes_the_hosting_from_another_match_with_its_own_copies_and_club(self, tmp_path):
         self.hosted(tmp_path)
@@ -558,7 +566,7 @@ class TestEnsurePublish:
 
         matches.ensure_publish(match, video, "aspom")
 
-        config = json.loads((match / matches.PUBLISH).read_text())
+        config = json.loads((match / matches.PUBLISH).read_text(encoding="utf-8"))
         assert (config["site"], config["url"], config["upload"], config["key"]) == ("outputs/hosted", "https://example.org/", "host:/site/", "key")
         assert config["club"] == 2
         assert "light" not in config and "video" not in config
@@ -566,11 +574,11 @@ class TestEnsurePublish:
     def test_keeps_an_existing_config(self, tmp_path):
         self.hosted(tmp_path)
         match, video = self.imported(tmp_path)
-        (match / matches.PUBLISH).write_text("{}")
+        (match / matches.PUBLISH).write_text("{}", encoding="utf-8")
 
         matches.ensure_publish(match, video, "aspom")
 
-        assert (match / matches.PUBLISH).read_text() == "{}"
+        assert (match / matches.PUBLISH).read_text(encoding="utf-8") == "{}"
 
     def test_none_without_another_match_hosted(self, tmp_path):
         match, video = self.imported(tmp_path)
@@ -591,12 +599,12 @@ class TestEnsurePublish:
 class TestClubTeam:
     @pytest.mark.parametrize("names, expected", [(["AVIA 1", "ASPOM 2"], 2), (["ASPOM 1", "ASPOM 2"], 1), (["A", "B"], 1)])
     def test_the_first_team_of_the_club(self, tmp_path, names, expected):
-        (tmp_path / "teams.json").write_text(json.dumps({"teams": [{"name": n} for n in names]}))
+        (tmp_path / "teams.json").write_text(json.dumps({"teams": [{"name": n} for n in names]}), encoding="utf-8")
 
         assert matches.club_team(tmp_path, "aspom") == expected
 
     def test_the_app_s_club_by_its_teams_first(self, tmp_path, monkeypatch):
-        (tmp_path / "teams.json").write_text(json.dumps({"teams": [{"name": "ASPOM 1"}, {"name": "ASPOM 2"}]}))
+        (tmp_path / "teams.json").write_text(json.dumps({"teams": [{"name": "ASPOM 1"}, {"name": "ASPOM 2"}]}), encoding="utf-8")
         monkeypatch.setattr(matches.club_settings, "read", lambda: {"name": "ASPOM Bègles", "teams": ["ASPOM 2"]})
 
         assert matches.club_team(tmp_path, matches.CLUB) == 2
@@ -607,7 +615,7 @@ KEY = matches.fingerprint("new-password")
 
 class TestChoose:
     def test_keeps_the_choice_alone(self, tmp_path):
-        (tmp_path / matches.PUBLISH).write_text(json.dumps({"url": "https://example.org/"}))
+        (tmp_path / matches.PUBLISH).write_text(json.dumps({"url": "https://example.org/"}), encoding="utf-8")
 
         assert matches.choose(tmp_path, True) == {"url": "https://example.org/", "video": True}
         assert matches.choose(tmp_path, False) == {"url": "https://example.org/", "video": False}
@@ -621,9 +629,9 @@ class TestSetPassword:
         (site / "m").mkdir(parents=True)
         match.mkdir(parents=True)
         config = {"site": str(site), "url": "https://example.org/v/", "upload": "host:/srv/site/", "key": "k", "video": True, "videoKey": "b" * 64}
-        (match / matches.PUBLISH).write_text(json.dumps(config))
+        (match / matches.PUBLISH).write_text(json.dumps(config), encoding="utf-8")
         files.write_secret(match / matches.PASSWORD, '{"v": 1}')
-        monkeypatch.setattr(matches, "online", lambda folder: [(match, Path("v.mp4"), Path("c.json"), json.loads((match / matches.PUBLISH).read_text()))] if online else [])
+        monkeypatch.setattr(matches, "online", lambda folder: [(match, Path("v.mp4"), Path("c.json"), json.loads((match / matches.PUBLISH).read_text(encoding="utf-8")))] if online else [])
         monkeypatch.setattr(matches, "hosted_folder", lambda m, s: site / "m")
         return tmp_path
 
@@ -641,7 +649,7 @@ class TestSetPassword:
             assert (outputs / matches.PASSWORD).stat().st_mode & 0o777 == 0o600
         # The match's own, from before 19 Nov, gone.
         assert not (outputs / "matches" / "m" / matches.PASSWORD).exists()
-        assert "videoKey" not in json.loads((outputs / "matches" / "m" / matches.PUBLISH).read_text())
+        assert "videoKey" not in json.loads((outputs / "matches" / "m" / matches.PUBLISH).read_text(encoding="utf-8"))
 
     def test_a_copy_s_wider_rights_are_narrowed_on_reading(self, tmp_path, monkeypatch):
         outputs = self.outputs(tmp_path, monkeypatch, online=False)
@@ -664,7 +672,7 @@ class TestSetPassword:
             matches.set_password(outputs, "new-password")
 
         assert matches.password(outputs) is None
-        assert json.loads((outputs / "matches" / "m" / matches.PUBLISH).read_text())["videoKey"] == "b" * 64
+        assert json.loads((outputs / "matches" / "m" / matches.PUBLISH).read_text(encoding="utf-8"))["videoKey"] == "b" * 64
 
     def test_without_a_match_online_kept_for_the_first_upload(self, tmp_path, monkeypatch):
         outputs = self.outputs(tmp_path, monkeypatch, online=False)
@@ -697,7 +705,7 @@ class TestAddCopies:
     PLAN = {"map": [[0, 10, 0, 10]], "camera": [[1.0, 5000, 5000, 15000]]}
 
     def test_lists_them_once_made_as_the_review_has_them(self, tmp_path, monkeypatch):
-        (tmp_path / matches.PUBLISH).write_text("{}")
+        (tmp_path / matches.PUBLISH).write_text("{}", encoding="utf-8")
         monkeypatch.setattr(matches, "review_cut", lambda match: self.PLAN)
         made = {key: tmp_path / f"{key}.mp4" for key in ("light", "av1", "small")}
         for path in made.values():
@@ -716,7 +724,7 @@ class TestAddCopies:
         former, elsewhere, kept = folder / "m_1080p.mp4", tmp_path / "mine_av1.mp4", folder / "m_720p.mp4"
         for path in (former, elsewhere, kept):
             path.write_bytes(b"")
-        (tmp_path / matches.PUBLISH).write_text(json.dumps({"light": str(former), "av1": str(elsewhere), "small": str(kept)}))
+        (tmp_path / matches.PUBLISH).write_text(json.dumps({"light": str(former), "av1": str(elsewhere), "small": str(kept)}), encoding="utf-8")
         monkeypatch.setattr(matches, "review_cut", lambda match: self.PLAN)
         made = {"light": folder / "m_1440p.mp4", "av1": folder / "m_av1.mp4", "small": kept}
         monkeypatch.setattr(matches.video_copies, "make", lambda video, plan, share: made["light"].write_bytes(b"") or made)
@@ -730,20 +738,20 @@ class TestAddCopies:
         copies = {key: tmp_path / f"{key}.mp4" for key in matches.video_copies.COPIES}
         for path in copies.values():
             path.write_bytes(b"")
-        (tmp_path / matches.PUBLISH).write_text(json.dumps({"video": True, **{key: str(path) for key, path in copies.items()}}))
+        (tmp_path / matches.PUBLISH).write_text(json.dumps({"video": True, **{key: str(path) for key, path in copies.items()}}), encoding="utf-8")
         plan = dict(self.PLAN)
         monkeypatch.setattr(matches, "review_cut", lambda match: plan)
         matches.video_copies.record(tmp_path, copies["light"], self.PLAN)
-        config = json.loads((tmp_path / matches.PUBLISH).read_text())
+        config = json.loads((tmp_path / matches.PUBLISH).read_text(encoding="utf-8"))
         made = []
         monkeypatch.setattr(matches.video_copies, "make", lambda video, p, share: made.append(p) or copies)
 
         (tmp_path / "review").mkdir()
-        (tmp_path / "review" / "data.js").write_text("a")
+        (tmp_path / "review" / "data.js").write_text("a", encoding="utf-8")
         assert not matches.copies_stale(tmp_path, config)
         plan["map"] = [[0, 5, 0, 5]]
         assert not matches.copies_stale(tmp_path, config)  # the review's files unchanged: its former cut
-        (tmp_path / "review" / "data.js").write_text("ab")
+        (tmp_path / "review" / "data.js").write_text("ab", encoding="utf-8")
         assert matches.copies_stale(tmp_path, config)
         matches.add_copies(tmp_path, Path("m.mp4"))
         assert made == []
@@ -752,9 +760,9 @@ class TestAddCopies:
 
     def test_the_reviews_plan_from_its_page_an_older_one_too(self, tmp_path):
         (tmp_path / "review").mkdir()
-        (tmp_path / "review" / "ball.js").write_text('window.MATCH_BALL = {"samples": []};\n')
+        (tmp_path / "review" / "ball.js").write_text('window.MATCH_BALL = {"samples": []};\n', encoding="utf-8")
         rallies = [{"start": 10, "end": 20, "set": 1}, {"start": 30, "end": 40, "set": 1}]
-        (tmp_path / "review" / "data.js").write_text("window.MATCH = " + json.dumps({"views": [[0, 0, 0, 1], [9, 0.2, 0.1, 0.5]], "duration": 60, "rallies": rallies, "contacts": []}) + ";\n")
+        (tmp_path / "review" / "data.js").write_text("window.MATCH = " + json.dumps({"views": [[0, 0, 0, 1], [9, 0.2, 0.1, 0.5]], "duration": 60, "rallies": rallies, "contacts": []}) + ";\n", encoding="utf-8")
 
         plan = matches.review_cut(tmp_path)
 
@@ -773,13 +781,13 @@ class TestAddCopies:
     def test_a_copy_at_a_former_height_is_missing(self, tmp_path, monkeypatch):
         copies = {key: tmp_path / f"{key}.mp4" for key in matches.video_copies.COPIES}
         for key, path in copies.items():
-            path.write_text(str(matches.video_copies.COPIES[key][1]))
+            path.write_text(str(matches.video_copies.COPIES[key][1]), encoding="utf-8")
         monkeypatch.setattr(matches.video_copies, "current", CURRENT)
-        monkeypatch.setattr(matches.video_copies, "height", lambda path: int(path.read_text()))
+        monkeypatch.setattr(matches.video_copies, "height", lambda path: int(path.read_text(encoding="utf-8")))
         config = {key: str(path) for key, path in copies.items()}
 
         assert not matches.copies_missing(config)
-        copies["av1"].write_text("1080")
+        copies["av1"].write_text("1080", encoding="utf-8")
         assert matches.copies_missing(config)
 
 
@@ -789,6 +797,8 @@ def test_sends_the_reports_beside_the_list():
     assert matches.feedback_address(None) is None
 
 
+# The server's command, a shell's.
+@pytest.mark.skipif(not shutil.which("sh"), reason="no sh")
 class TestKeyCommand:
     @staticmethod
     def run(tmp_path, service, key):
@@ -796,7 +806,7 @@ class TestKeyCommand:
         bin_.mkdir(exist_ok=True)
         for name in ("docker", "nginx"):
             fake = bin_ / name
-            fake.write_text(f'#!/bin/sh\necho "$@" >> {tmp_path}/{name}.log\n')
+            fake.write_text(f'#!/bin/sh\necho "$@" >> {tmp_path}/{name}.log\n', encoding="utf-8")
             fake.chmod(0o755)
         subprocess.run(["sh", "-c", matches.key_command(service, key)], check=True, env={**os.environ, "PATH": f"{bin_}:{os.environ['PATH']}"})
         return service / "video_key.conf"
@@ -804,26 +814,26 @@ class TestKeyCommand:
     def test_one_key_for_every_folder_in_place_the_former_ones_gone_then_reloads(self, tmp_path):
         service = tmp_path / "docker" / "volleyball-stats"
         service.mkdir(parents=True)
-        (service.parent / "docker-compose.yml").write_text("services:\n  volleyballstats:\n    image: nginx\n")
+        (service.parent / "docker-compose.yml").write_text("services:\n  volleyballstats:\n    image: nginx\n", encoding="utf-8")
         keys = service / "video_key.conf"
-        keys.write_text('"old-match:111" 1;\n"m:222" 1;\n')
+        keys.write_text('"old-match:111" 1;\n"m:222" 1;\n', encoding="utf-8")
         inode = keys.stat().st_ino
 
         self.run(tmp_path, service, "333")
 
-        assert keys.read_text() == '"~^[^:/]+:333$" 1;\n'
+        assert keys.read_text(encoding="utf-8") == '"~^[^:/]+:333$" 1;\n'
         assert keys.stat().st_ino == inode
         assert sorted(p.name for p in service.iterdir()) == ["video_key.conf"]
-        assert "nginx -t -q && nginx -s reload" in (tmp_path / "docker.log").read_text()
+        assert "nginx -t -q && nginx -s reload" in (tmp_path / "docker.log").read_text(encoding="utf-8")
 
     def test_reloads_the_servers_own_nginx_without_the_owners_compose(self, tmp_path):
         service = tmp_path / "srv" / "site-parent"
         service.mkdir(parents=True)
-        (service / "video_key.conf").write_text("")
+        (service / "video_key.conf").write_text("", encoding="utf-8")
 
         self.run(tmp_path, service, "333")
 
-        assert (tmp_path / "nginx.log").read_text() == "-t -q\n-s reload\n" and not (tmp_path / "docker.log").exists()
+        assert (tmp_path / "nginx.log").read_text(encoding="utf-8") == "-t -q\n-s reload\n" and not (tmp_path / "docker.log").exists()
 
 
 def test_a_match_from_the_other_machine_gets_its_review_page_before_the_voice(tmp_path, monkeypatch):
@@ -831,7 +841,7 @@ def test_a_match_from_the_other_machine_gets_its_review_page_before_the_voice(tm
     monkeypatch.setattr(matches.web, "review_page", lambda match, video, court, theme, pictures: built.append((match, pictures)))
     matches.ensure_review_page(tmp_path, Path("v.mp4"), Path("c.json"), "aspom")
     (tmp_path / "review").mkdir()
-    (tmp_path / "review" / "data.js").write_text("window.MATCH = {};\n")
+    (tmp_path / "review" / "data.js").write_text("window.MATCH = {};\n", encoding="utf-8")
     matches.ensure_review_page(tmp_path, Path("v.mp4"), Path("c.json"), "aspom")
 
     assert built == [(tmp_path, False)]
@@ -858,7 +868,7 @@ class TestAdoptFilms:
         page = tmp_path / "site" / "m" / "video"
         (page / "films").mkdir(parents=True)
         films = {"*": "films/resume.mp4?v=aaa", "Loïck": "films/2-loick.mp4?v=bbb", "Gone": "films/1-gone.mp4?v=ccc"}
-        (page / "data.js").write_text("window.MATCH = " + json.dumps({"name": "m", "films": films}) + ";\n")
+        (page / "data.js").write_text("window.MATCH = " + json.dumps({"name": "m", "films": films}) + ";\n", encoding="utf-8")
         (page / "films" / "resume.mp4").write_bytes(b"r")
         (page / "films" / "2-loick.mp4").write_bytes(b"l")
         return page
@@ -867,7 +877,7 @@ class TestAdoptFilms:
         match = tmp_path / "match"
         match.mkdir()
         assert matches.adopt_films(match, self.page(tmp_path)) == 2
-        made = json.loads((match / "films" / "manifest.json").read_text())
+        made = json.loads((match / "films" / "manifest.json").read_text(encoding="utf-8"))
         assert {n: (e["file"], e["hash"]) for n, e in made.items()} == {"*": ("resume.mp4", "aaa"), "Loïck": ("2-loick.mp4", "bbb")}
         assert (match / "films" / "2-loick.mp4").read_bytes() == b"l"
 
@@ -883,7 +893,7 @@ class TestExport:
         built = []
         match = tmp_path / "outputs" / "matches" / "first"
         match.mkdir(parents=True)
-        (match / "publish.json").write_text(json.dumps({"club": 2, "video": True}))
+        (match / "publish.json").write_text(json.dumps({"club": 2, "video": True}), encoding="utf-8")
         (tmp_path / "first.mp4").write_bytes(b"")
         monkeypatch.setattr(matches, "ensure_review_page", lambda *args: None)
         monkeypatch.setattr(matches, "make_voice", lambda match: built.append("voice"))
@@ -891,7 +901,7 @@ class TestExport:
         def publish(match, video, court, theme, given, site, share=None):
             built.append(given)
             site.mkdir(parents=True)
-            (site / "data.js").write_text(f"window.MATCH = {json.dumps({'name': 'first', 'date': '2026-10-29', 'teams': None, 'rallies': []})};\n")
+            (site / "data.js").write_text(f"window.MATCH = {json.dumps({'name': 'first', 'date': '2026-10-29', 'teams': None, 'rallies': []})};\n", encoding="utf-8")
             return {}, {}
 
         monkeypatch.setattr(matches.web, "publish", publish)
@@ -924,19 +934,19 @@ class TestCounted:
         assert matches.files_to_send("<f+++++++++ a.js\n.d..t...... ./\n*deleting   old\n>f.st...... b.js\n") == 2
 
     def test_tells_the_files_moved_of_those_to_move_and_ends_at_one(self, monkeypatch, tmp_path):
-        script = tmp_path / "fake"
-        script.write_text("#!/bin/sh\nprintf '<f+++ a\\n.d.. ./\\n<f+++ b\\n<f+++ c\\n'\n")
-        script.chmod(0o755)
+        script = tmp_path / "fake.py"
+        script.write_text("print('<f+++ a\\n.d.. ./\\n<f+++ b\\n<f+++ c')\n", encoding="utf-8")
+        monkeypatch.setattr(matches.transfer, "local", lambda command: [sys.executable, str(script), *command[1:]])
         told = []
-        matches.counted([str(script)], 3, told.append)
+        matches.counted(["rsync"], 3, told.append)
         assert told[:3] == pytest.approx([1 / 3, 2 / 3, 1.0]) and told[-1] == 1.0
 
-    def test_keeps_the_errors_when_it_fails(self, tmp_path):
-        script = tmp_path / "fake"
-        script.write_text("#!/bin/sh\necho 'no route' >&2\nexit 12\n")
-        script.chmod(0o755)
+    def test_keeps_the_errors_when_it_fails(self, tmp_path, monkeypatch):
+        script = tmp_path / "fake.py"
+        script.write_text("import sys\nprint('no route', file=sys.stderr)\nsys.exit(12)\n", encoding="utf-8")
+        monkeypatch.setattr(matches.transfer, "local", lambda command: [sys.executable, str(script), *command[1:]])
         with pytest.raises(subprocess.CalledProcessError) as error:
-            matches.counted([str(script)], 1)
+            matches.counted(["rsync"], 1)
         assert error.value.returncode == 12 and "no route" in error.value.stderr
 
 
@@ -948,29 +958,29 @@ class TestSsh:
 
     def test_rsync_keeps_a_key_path_with_spaces_whole(self, tmp_path):
         command = matches.upload_command({"key": "/Users/A B/key", "upload": "root@h:/site/"}, tmp_path, [])
-        assert "'/Users/A B/key'" in command[command.index("-e") + 1]
+        assert shlex.split(command[command.index("-e") + 1])[2] == str(Path("/Users/A B/key"))
 
 
 class TestMadeFrom:
     def test_follows_the_match_s_inputs_not_what_hosting_or_the_review_s_code_writes(self, tmp_path):
         match, court = tmp_path / "m", tmp_path / "court.json"
         (match / "review" / "assets").mkdir(parents=True)
-        (match / "rallies.csv").write_text("start_frame\n1\n")
-        (match / "review" / "data.js").write_text('window.MATCH = {"name": "m", "v": "1"};\n')
-        court.write_text("{}")
+        (match / "rallies.csv").write_text("start_frame\n1\n", encoding="utf-8")
+        (match / "review" / "data.js").write_text('window.MATCH = {"name": "m", "v": "1"};\n', encoding="utf-8")
+        court.write_text("{}", encoding="utf-8")
         made = lambda **config: matches.made_from(match, tmp_path / "m.mp4", court, "aspom", {"video": False, **config})  # noqa: E731
         first = made()
 
-        (match / "hosted.json").write_text("{}")
-        (match / "review" / "assets" / "index-abc.js").write_text("code")
-        (match / "review" / "data.js").write_text('window.MATCH = {"name": "m", "v": "2"};\n')
+        (match / "hosted.json").write_text("{}", encoding="utf-8")
+        (match / "review" / "assets" / "index-abc.js").write_text("code", encoding="utf-8")
+        (match / "review" / "data.js").write_text('window.MATCH = {"name": "m", "v": "2"};\n', encoding="utf-8")
         assert made() == first
         assert made(club=2) != first
         # A new password reaches the server alone: the pages stay as built.
-        (match / matches.PUBLISH).write_text('{"videoKey": "b"}')
-        (match / matches.PASSWORD).write_text("{}")
+        (match / matches.PUBLISH).write_text('{"videoKey": "b"}', encoding="utf-8")
+        (match / matches.PASSWORD).write_text("{}", encoding="utf-8")
         assert made(videoKey="b") == first
-        (match / "rallies.csv").write_text("start_frame\n2\n")
+        (match / "rallies.csv").write_text("start_frame\n2\n", encoding="utf-8")
         assert made() != first
 
 
@@ -980,9 +990,9 @@ class TestUpdateAll:
         old, new = folder / "old", folder / "new"
         for match in (old, new):
             match.mkdir(parents=True)
-            (match / files.SOURCE).write_text(json.dumps({"video": str(tmp_path / "v.mp4"), "court": "c.json"}))
+            (match / files.SOURCE).write_text(json.dumps({"video": str(tmp_path / "v.mp4"), "court": "c.json"}), encoding="utf-8")
         (tmp_path / "v.mp4").write_bytes(b"v")
-        (new / matches.PUBLISH).write_text(json.dumps({"site": str(tmp_path / "site"), "video": True}))
+        (new / matches.PUBLISH).write_text(json.dumps({"site": str(tmp_path / "site"), "video": True}), encoding="utf-8")
         online = [(old, tmp_path / "v.mp4", Path("c.json"), {"video": False})]
         done = []
         monkeypatch.setattr(matches, "online", lambda f: online)
@@ -1004,8 +1014,8 @@ class TestUpdateAll:
         new, bare = folder / "new", folder / "bare"
         for match, video in ((new, True), (bare, False)):
             match.mkdir(parents=True)
-            (match / files.SOURCE).write_text(json.dumps({"video": str(tmp_path / "v.mp4"), "court": "c.json"}))
-            (match / matches.PUBLISH).write_text(json.dumps({"site": str(tmp_path / "site"), "video": video, "light": "l", "av1": "a", "small": "s"}))
+            (match / files.SOURCE).write_text(json.dumps({"video": str(tmp_path / "v.mp4"), "court": "c.json"}), encoding="utf-8")
+            (match / matches.PUBLISH).write_text(json.dumps({"site": str(tmp_path / "site"), "video": video, "light": "l", "av1": "a", "small": "s"}), encoding="utf-8")
         (tmp_path / "v.mp4").write_bytes(b"v")
         done = []
         monkeypatch.setattr(matches, "online", lambda f: [])

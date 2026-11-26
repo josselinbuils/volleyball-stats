@@ -634,7 +634,7 @@ def settle(
     if len(known) > len(starts):
         raise ValueError(f"{len(known)} set scores for {len(starts)} sets: give the set starts too")
     data = {"teams": entries, "date": day, "title": title, "sets": starts, "scores": [*known, *[None] * (len(starts) - len(known))], **{k: old[k] for k in ("end", "net") if old.get(k)}}
-    path.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n")
+    path.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     return data
 
 
@@ -648,12 +648,12 @@ def main() -> None:
 
     from volleyball_stats.attribution import read_players
 
-    with open(args.rallies) as f:
+    with open(args.rallies, encoding="utf-8") as f:
         windows = [(int(r["start_frame"]), int(r["end_frame"])) for r in csv.DictReader(f)]
     teams = assign(args.video, read_players(args.players), windows, decode.fps(args.video))
     args.out.mkdir(parents=True, exist_ok=True)
     path = args.out / f"{args.video.stem}_tracks.csv"
-    with open(path, "w", newline="") as f:
+    with open(path, "w", newline="", encoding="utf-8") as f:
         csv.writer(f).writerows([["track", "team"], *sorted(teams.tracks.items())])
     print(f"Team 1 {teams.colours[1]}, Team 2 {teams.colours[2]}; left per rally: {' '.join(str(g or '?') for g in teams.left)} -> {path}", file=sys.stderr)
 

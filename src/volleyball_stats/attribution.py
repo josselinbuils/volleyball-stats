@@ -74,7 +74,7 @@ def read_players(path: Path, share: Callable[[float], None] = lambda _: None) ->
     try:
         t = tables.players(path, share)
     except ValueError:
-        with open(path) as f:
+        with open(path, encoding="utf-8") as f:
             return [
                 Row(int(r["frame"]), int(r["track"]), tuple(float(r[k]) for k in ("x1", "y1", "x2", "y2")), float(r["conf"]),
                     (float(r["feet_x"]), float(r["feet_y"])), (float(r["court_x"]), float(r["court_y"])), r["team"])
@@ -218,7 +218,7 @@ def by_wrists(
     by_track, gap = tracks(rows), round(GAP_S * fps)
     feet = feet_on_court(rows) if places or widths else {}
     depth = ballsize.Depth(calibration, feet, gap) if widths and calibration is not None else None
-    kept = json.loads(cache.read_text()) if cache and cache.exists() else {}
+    kept = json.loads(cache.read_text(encoding="utf-8")) if cache and cache.exists() else {}
     posed = lambda kind, found: len(found) >= 2 and (learned is not None or kind in BELOW_HEAD)  # noqa: E731
     wanted = [(frame, x, y) for (frame, x, y, kind, _), found in zip(typed, candidates) if posed(kind, found) and f"{frame}:{x}:{y}" not in kept]
     if wanted:
@@ -337,12 +337,12 @@ def main() -> None:
     parser.add_argument("--out", type=Path, default=Path("outputs"))
     args = parser.parse_args()
 
-    with open(args.actions) as f:
+    with open(args.actions, encoding="utf-8") as f:
         typed = [(int(r["frame"]), int(r["x"]), int(r["y"]), r["type"], r["side"]) for r in csv.DictReader(f)]
     found = attribute(typed, read_players(args.players), args.fps)
     args.out.mkdir(parents=True, exist_ok=True)
     path = args.out / f"{args.actions.stem.removesuffix('_actions')}_attribution.csv"
-    with open(path, "w", newline="") as f:
+    with open(path, "w", newline="", encoding="utf-8") as f:
         csv.writer(f).writerows([["frame", "x", "y", "type", "side", "track"], *([*t, "" if k is None else k] for t, k in zip(typed, found))])
     print(f"{sum(k is not None for k in found)}/{len(typed)} contacts attributed -> {path}")
 

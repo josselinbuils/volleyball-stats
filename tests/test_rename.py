@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 
 import pytest
 
@@ -17,7 +18,7 @@ class TestRename:
             (tmp_path / path).touch()
         files.write_source(match, video, court)
         (match / "report.md").touch()
-        (match / "teams.json").write_text(json.dumps({"date": "2026-11-02", "teams": [{"name": "AVIA 01"}, {"name": "ASPOM Bègles"}]}))
+        (match / "teams.json").write_text(json.dumps({"date": "2026-11-02", "teams": [{"name": "AVIA 01"}, {"name": "ASPOM Bègles"}]}), encoding="utf-8")
         return match
 
     def test_the_name_comes_from_the_date_and_the_teams(self, tmp_path, monkeypatch):
@@ -25,9 +26,9 @@ class TestRename:
 
     def test_no_name_without_a_date_or_a_team_s_name(self, tmp_path, monkeypatch):
         match = self.match(tmp_path, monkeypatch)
-        (match / "teams.json").write_text(json.dumps({"date": "2026-11-02", "teams": [{"name": "A"}, {"name": None}]}))
+        (match / "teams.json").write_text(json.dumps({"date": "2026-11-02", "teams": [{"name": "A"}, {"name": None}]}), encoding="utf-8")
         assert target_name(match) is None
-        (match / "teams.json").write_text(json.dumps({"date": None, "teams": [{"name": "A"}, {"name": "B"}]}))
+        (match / "teams.json").write_text(json.dumps({"date": None, "teams": [{"name": "A"}, {"name": "B"}]}), encoding="utf-8")
         assert target_name(match) is None
 
     def test_moves_the_match_s_files_and_keeps_the_old_name_as_an_alias(self, tmp_path, monkeypatch):
@@ -36,7 +37,7 @@ class TestRename:
         target = rename_match(match, "new", tmp_path / "data")
 
         assert target == tmp_path / "outputs" / "matches" / "new" and not match.exists()
-        given = json.loads((target / files.SOURCE).read_text())
+        given = json.loads((target / files.SOURCE).read_text(encoding="utf-8"))
         assert given["aliases"] == ["old"] and (tmp_path / given["video"]).name == "new.mp4"
         assert sorted(p.name for p in (tmp_path / "data" / "new").iterdir()) == ["new.mp4", "old_1080p.mp4"]
         assert (target / "court.json").exists() and (target / "court.jpg").exists() and (target / "old_clicks.json").exists()
@@ -48,13 +49,13 @@ class TestRename:
         match = self.match(tmp_path, monkeypatch)
         data = tmp_path / "data"
         files_first = rename_match(match, "two", data)
-        given = json.loads((files_first / files.SOURCE).read_text())
+        given = json.loads((files_first / files.SOURCE).read_text(encoding="utf-8"))
         given["video"] = "data/two/two.mp4"
-        (files_first / files.SOURCE).write_text(json.dumps(given))
+        (files_first / files.SOURCE).write_text(json.dumps(given), encoding="utf-8")
 
         target = rename_match(files_first, "three", data)
 
-        assert json.loads((target / files.SOURCE).read_text())["aliases"] == ["old", "two"]
+        assert json.loads((target / files.SOURCE).read_text(encoding="utf-8"))["aliases"] == ["old", "two"]
         assert not (data / "two").exists()
         assert sorted(p.name for p in (data / "three").iterdir()) == ["old_1080p.mp4", "three.mp4"]
 
@@ -64,19 +65,19 @@ class TestRename:
         target = rename_match(match, "new", tmp_path / "data")
 
         assert (tmp_path / "outputs" / "courts" / "gym.json").exists()
-        assert json.loads((target / files.SOURCE).read_text())["court"] == "outputs/courts/gym.json"
+        assert json.loads((target / files.SOURCE).read_text(encoding="utf-8"))["court"] == "outputs/courts/gym.json"
 
     def test_moves_the_hosted_copies_and_says_where_they_are(self, tmp_path, monkeypatch):
         match = self.match(tmp_path, monkeypatch)
         copy = tmp_path / "data" / "hosted_copies" / "light.mp4"
         copy.parent.mkdir()
         copy.touch()
-        (match / "publish.json").write_text(json.dumps({"site": "outputs/hosted", "light": str(copy), "av1": None}))
+        (match / "publish.json").write_text(json.dumps({"site": "outputs/hosted", "light": str(copy), "av1": None}), encoding="utf-8")
 
         target = rename_match(match, "new", tmp_path / "data")
 
-        saved = json.loads((target / "publish.json").read_text())
-        assert saved["light"].endswith("data/new/reencoded/light.mp4") and (tmp_path / "data" / "new" / "reencoded" / "light.mp4").exists()
+        saved = json.loads((target / "publish.json").read_text(encoding="utf-8"))
+        assert Path(saved["light"]).as_posix().endswith("data/new/reencoded/light.mp4") and (tmp_path / "data" / "new" / "reencoded" / "light.mp4").exists()
         assert saved["av1"] is None and not copy.exists()
 
     def test_the_copies_stay_in_their_folder(self, tmp_path, monkeypatch):
@@ -84,26 +85,26 @@ class TestRename:
         copy = tmp_path / "data" / "old" / "reencoded" / "old_720p.mp4"
         copy.parent.mkdir()
         copy.touch()
-        (match / "publish.json").write_text(json.dumps({"site": "outputs/hosted", "small": str(copy)}))
+        (match / "publish.json").write_text(json.dumps({"site": "outputs/hosted", "small": str(copy)}), encoding="utf-8")
 
         target = rename_match(match, "new", tmp_path / "data")
 
-        assert json.loads((target / "publish.json").read_text())["small"] == str((tmp_path / "data" / "new" / "reencoded" / "old_720p.mp4").resolve())
+        assert json.loads((target / "publish.json").read_text(encoding="utf-8"))["small"] == str((tmp_path / "data" / "new" / "reencoded" / "old_720p.mp4").resolve())
         assert (tmp_path / "data" / "new" / "reencoded" / "old_720p.mp4").exists()
 
     def test_moves_the_roster_s_entries(self, tmp_path, monkeypatch):
         match = self.match(tmp_path, monkeypatch)
-        (tmp_path / "outputs" / "roster.json").write_text(json.dumps({"players": [{"name": "Ana", "vectors": {"old": [1.0], "other": [2.0]}}]}))
+        (tmp_path / "outputs" / "roster.json").write_text(json.dumps({"players": [{"name": "Ana", "vectors": {"old": [1.0], "other": [2.0]}}]}), encoding="utf-8")
 
         rename_match(match, "new", tmp_path / "data")
 
-        assert json.loads((tmp_path / "outputs" / "roster.json").read_text())["players"][0]["vectors"] == {"new": [1.0], "other": [2.0]}
+        assert json.loads((tmp_path / "outputs" / "roster.json").read_text(encoding="utf-8"))["players"][0]["vectors"] == {"new": [1.0], "other": [2.0]}
 
     def test_moves_the_learned_attribution_s_pose_cache(self, tmp_path, monkeypatch):
         match = self.match(tmp_path, monkeypatch)
         cache = tmp_path / "outputs" / "benchmarks" / "ranker"
         cache.mkdir(parents=True)
-        (cache / "old_wrists.json").write_text("{}")
+        (cache / "old_wrists.json").write_text("{}", encoding="utf-8")
 
         rename_match(match, "new", tmp_path / "data")
 

@@ -1050,7 +1050,7 @@ def leftovers(seconds: dict[tuple[int, int], float], names: dict[tuple[int, int]
 
 def read_identities(path: Path) -> list[tuple[int, int, int, int, int]]:
     """identities.csv rows: track, start frame, end frame, team, identity."""
-    with open(path) as f:
+    with open(path, encoding="utf-8") as f:
         return [tuple(int(r[k]) for k in ("track", "start_frame", "end_frame", "team", "identity")) for r in csv.DictReader(f)]
 
 
@@ -1104,7 +1104,7 @@ def read_names(match: Path) -> list[dict]:
     """player_names.json's entries: a player's `ref` (a piece of track, as answers refer to it), the
     `name` and `jersey` number the user gave them, either None."""
     path = match / NAMES
-    return json.loads(path.read_text())["players"] if path.exists() else []
+    return json.loads(path.read_text(encoding="utf-8"))["players"] if path.exists() else []
 
 
 def named(table: list[tuple[int, int, int, int, int]], names: list[dict]) -> dict[tuple[int, int], dict]:
@@ -1170,12 +1170,12 @@ def rerun(match: Path, video: Path, squad: tuple[int, int] | None = None, share:
 
     # Its parts' shares of the time, measured on the second match (13 Nov): reading players.csv, then `run`.
     part = jobs.parts(share, {"read": 11.0, "run": 21.8})
-    with open(match / "rallies.csv") as f:
+    with open(match / "rallies.csv", encoding="utf-8") as f:
         rallies = list(csv.DictReader(f))
     windows = [(int(r["start_frame"]), int(r["end_frame"])) for r in rallies]
     left = [int(r["left"]) if r.get("left") else None for r in rallies]
     actions = match / "actions.csv"
-    with open(actions) as f:
+    with open(actions, encoding="utf-8") as f:
         typed = list(csv.DictReader(f))
     fps = decode.fps(video)
     rows = read_players(match / "players.csv", part("read"))

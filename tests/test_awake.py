@@ -67,7 +67,7 @@ def test_a_job_records_the_battery_while_it_runs(monkeypatch, tmp_path):
     monkeypatch.setattr(awake, "held", held)
     record = tmp_path / "jobs" / "m.json"
     record.parent.mkdir()
-    record.write_text(json.dumps({"id": "m", "kind": "pipeline", "steps": [{"name": "one", "args": ["json.tool", "--help"]}], "started": time.time()}))
+    record.write_text(json.dumps({"id": "m", "kind": "pipeline", "steps": [{"name": "one", "args": ["json.tool", "--help"]}], "started": time.time()}), encoding="utf-8")
     jobs.run(record)
-    job = json.loads(record.read_text())
+    job = json.loads(record.read_text(encoding="utf-8"))
     assert job["battery"] is True and job["step"] is None and "ended" in job

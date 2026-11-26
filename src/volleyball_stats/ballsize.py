@@ -79,7 +79,7 @@ def widths(video: Path, typed: list[tuple], ball_path: Path, fps: float, cache: 
     """The ball's width in pixels around each touch of `typed` it could be measured at, by frame; kept
     in `cache` (JSON, by frame and ball place) for the next runs. The video decoded in one pass, the share of the frames
     needed read told to `share` as it goes."""
-    kept = json.loads(cache.read_text()) if cache and cache.exists() else {}
+    kept = json.loads(cache.read_text(encoding="utf-8")) if cache and cache.exists() else {}
     keys = {t[0]: f"{t[0]}:{t[1]}:{t[2]}" for t in typed if t[3] not in ("floor", "net")}
     missing = sorted(f for f, key in keys.items() if key not in kept)
     if missing:

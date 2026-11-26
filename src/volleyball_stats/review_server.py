@@ -143,7 +143,7 @@ def send_file(handler, path: Path, kind: str | None = None) -> None:
                     break
                 handler.wfile.write(chunk)
                 left -= len(chunk)
-        except (BrokenPipeError, ConnectionResetError):
+        except ConnectionError:  # a viewer gone (Windows: aborted)
             pass
 
 
@@ -161,7 +161,7 @@ def match_list(out: Path) -> list[dict]:
     their pipeline has ended and their files are there."""
     found = []
     for source in out.glob(f"*/{files.SOURCE}"):
-        folder, given = source.parent, json.loads(source.read_text())
+        folder, given = source.parent, json.loads(source.read_text(encoding="utf-8"))
         if (folder / "review" / "data.js").exists():
             item = matches.listed(folder / "review")
         else:
@@ -202,7 +202,7 @@ def list_page(path: str, out: Path, theme: str) -> tuple[bytes, str] | None:
             club.pop("sponsors")
         # The server's matches come after (`/matches/remote.json`): reaching it takes a second, or ssh's timeout.
         listed = match_list(out)
-        (site / "matches.js").write_text(f"window.MATCHES = {json.dumps({'matches': listed, 'club': club, 'review': True}, ensure_ascii=False)};\n")
+        (site / "matches.js").write_text(f"window.MATCHES = {json.dumps({'matches': listed, 'club': club, 'review': True}, ensure_ascii=False)};\n", encoding="utf-8")
         return (site / "matches.html").read_bytes(), "text/html; charset=utf-8"
     if path == "/matches/remote.json":
         found = on_server(out, match_list(out)) if sync.active(out.parent) else []
@@ -393,7 +393,7 @@ class Review:
             "/more": self.get_more,
             "/nearest": lambda q: reply(self.questions.nearest(int(q["f"][0]), q["type"][0])),
             "/crop": self.get_crop,
-            "/review": lambda q: Reply(with_review((self.site / "index.html").read_text()).encode(), "text/html; charset=utf-8"),
+            "/review": lambda q: Reply(with_review((self.site / "index.html").read_text(encoding="utf-8")).encode(), "text/html; charset=utf-8"),
             "/page": lambda q: Reply((self.site / "index.html").read_bytes(), "text/html; charset=utf-8"),
         }
         self.posts: dict[str, Callable[[dict], Reply]] = {
@@ -560,7 +560,7 @@ class Review:
             taken = {m: hosted.page_taken(m) for m in done if (m / "review" / "data.js").exists()}
             # In its own process, with the code as it now is, whenever this server started.
             # Its own stages' share told (`jobs.PROGRESS` lines) goes to `shared`; its errors kept for the message.
-            child = subprocess.Popen([sys.executable, "-m", "volleyball_stats.matches", *target, "--theme", self.theme], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            child = subprocess.Popen([sys.executable, "-m", "volleyball_stats.matches", *target, "--theme", self.theme], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding="utf-8", errors="replace")
             errors: list[str] = []
             reader = threading.Thread(target=lambda: errors.extend(child.stderr), daemon=True)
             reader.start()
@@ -812,7 +812,7 @@ class Review:
             "odd": odd,
             "conflicts": conflicts,
             **self.card_photos(),
-            "hosted": {**self.online, "chosen": "video" in json.loads(publish.read_text())} if publish.exists() else None,
+            "hosted": {**self.online, "chosen": "video" in json.loads(publish.read_text(encoding="utf-8"))} if publish.exists() else None,
             "updating": self.updating(),
             "fetched": self.fetched or None,
             "backup": self.backup_state(),
@@ -880,7 +880,7 @@ class Review:
     def feedback(self, raw: bytes) -> Reply:
         """A report of what is wrong in a moment, from the review's copy of the match page: kept as the hosting's nginx keeps
         the viewers' (volleyball_stats.feedback reads both)."""
-        with self.reports_lock, open(self.match / FEEDBACK, "a") as f:
+        with self.reports_lock, open(self.match / FEEDBACK, "a", encoding="utf-8") as f:
             f.write(json.dumps({"received": time.strftime("%Y-%m-%dT%H:%M:%S%z"), "report": raw.decode()}, ensure_ascii=False) + "\n")
         return Reply(b"", "text/plain", 204)
 
@@ -980,7 +980,7 @@ class Review:
         new = rename.target_name(match)
         if new and new != match.name and not self.progress and not (match.parent / new).exists():
             # In its own process, with the code as it now is, whenever this server started.
-            run = subprocess.run([sys.executable, "-m", "volleyball_stats.rename", str(match), new, "--from-review"], capture_output=True, text=True)
+            run = subprocess.run([sys.executable, "-m", "volleyball_stats.rename", str(match), new, "--from-review"], capture_output=True, text=True, encoding="utf-8", errors="replace")
             if run.returncode:
                 raise ValueError(run.stderr.strip())
             return reply({"renamed": new}, then=self.opens(new))
@@ -1162,7 +1162,7 @@ class Review:
         match, video = self.match, self.video
         if not (match / matches.PUBLISH).exists():
             return None
-        config = json.loads((match / matches.PUBLISH).read_text())
+        config = json.loads((match / matches.PUBLISH).read_text(encoding="utf-8"))
         if "video" not in config:
             if body.get("video") and not matches.password(self.outputs):
                 # The first match online with its video: the password chosen with it.
@@ -1327,7 +1327,7 @@ class Server(ThreadingHTTPServer):
             review.reports_came(found)
 
     def handle_error(self, request, client_address) -> None:
-        if not isinstance(sys.exc_info()[1], (BrokenPipeError, ConnectionResetError)):
+        if not isinstance(sys.exc_info()[1], ConnectionError):
             super().handle_error(request, client_address)
 
 

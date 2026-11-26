@@ -48,7 +48,7 @@ Score = tuple[int, int]
 
 
 def read_rows(path: Path) -> list[dict]:
-    with open(path) as f:
+    with open(path, encoding="utf-8") as f:
         return list(csv.DictReader(f))
 
 
@@ -174,7 +174,11 @@ def from_checked(match: Path, page: dict, fps: float) -> dict[str, Score]:
 
 
 def commit() -> str:
-    run = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=ROOT, capture_output=True, text=True)
+    """The code's version, empty without git."""
+    try:
+        run = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=ROOT, capture_output=True, text=True, encoding="utf-8", errors="replace")
+    except OSError:
+        return ""
     return run.stdout.strip()
 
 
@@ -183,7 +187,7 @@ def from_training(match: Path) -> dict[str, Score]:
     path = match / RANKER
     if not path.exists():
         return {}
-    found = json.loads(path.read_text())
+    found = json.loads(path.read_text(encoding="utf-8"))
     return {"attribution: held out, learned": (found["learned"], found["touches"]), "attribution: held out, rule": (found["rule"], found["touches"])}
 
 
@@ -207,7 +211,7 @@ def answered(outputs: Path) -> list[str]:
     """The matches of `outputs` with review answers and their video here, as ranker.py takes them."""
     found = []
     for source in sorted(outputs.glob(f"*/{files.SOURCE}")):
-        match, given = source.parent, json.loads(source.read_text())
+        match, given = source.parent, json.loads(source.read_text(encoding="utf-8"))
         if (match / files.ANSWERS).exists() and (ROOT / given["video"]).exists():
             found.append(f"{match}:{ROOT / given['video']}:{ROOT / given['court']}")
     return found
@@ -273,7 +277,7 @@ def rerun(
         shutil.copy2(match / "review" / "data.js", before / "review-data.js")
     with subprocess.Popen(
         [sys.executable, "-m", "volleyball_stats.match", str(video), "--court", str(court), "--players", "--no-page", "--out", str(match.parent)],
-        stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, text=True, bufsize=1,
+        stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, text=True, bufsize=1, encoding="utf-8", errors="replace",
     ) as run:
         for line in run.stdout:
             if line.startswith(pipeline.STAGE):
@@ -323,7 +327,7 @@ def waiting(outputs: Path) -> list[tuple[Path, Path, Path]]:
     """The matches of `outputs` an update would take (`review.due`), with their video and court, oldest first."""
     found = []
     for source in sorted(outputs.glob(f"*/{files.SOURCE}")):
-        match, given = source.parent, json.loads(source.read_text())
+        match, given = source.parent, json.loads(source.read_text(encoding="utf-8"))
         video, court = Path(given["video"]), Path(given["court"])
         if video.exists() and court.exists() and review.due(match):
             found.append((match, video, court))

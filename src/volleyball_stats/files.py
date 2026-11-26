@@ -10,6 +10,7 @@ import inspect
 import json
 import os
 import threading
+import time
 import types
 from collections.abc import Callable, Iterable, Iterator
 from contextlib import contextmanager
@@ -27,15 +28,34 @@ def root(match: Path) -> Path:
     return match.parent.parent
 
 
+# How long Windows may hold a file a reader has open before it can be replaced (no reader holds one so long).
+REPLACE_WAIT_S = 5.0
+
+
+def replace(source: Path | str, target: Path | str) -> None:
+    """`os.replace`, which Windows refuses while another process reads `target`: tried again a moment."""
+    deadline = time.monotonic() + REPLACE_WAIT_S
+    while True:
+        try:
+            os.replace(source, target)
+            return
+        except PermissionError:
+            if os.name != "nt" or time.monotonic() > deadline:
+                raise
+            time.sleep(0.05)
+
+
 @contextmanager
 def replacing(path: Path, mode: str = "w", **kwargs) -> Iterator[IO]:
     """`path` opened for writing (`mode` and `kwargs` as `open`'s), in place once the block ends."""
     # One temporary file per process and thread: the review server writes from several threads.
     temporary = path.with_name(f".{path.name}.{os.getpid()}.{threading.get_ident()}.tmp")
+    if "b" not in mode:
+        kwargs.setdefault("encoding", "utf-8")
     try:
         with open(temporary, mode, **kwargs) as f:
             yield f
-        os.replace(temporary, path)
+        replace(temporary, path)
     except BaseException:
         temporary.unlink(missing_ok=True)
         raise
@@ -43,7 +63,7 @@ def replacing(path: Path, mode: str = "w", **kwargs) -> Iterator[IO]:
 
 def read_json(path: Path, default=None):
     """`path`'s JSON, `default` without the file."""
-    return json.loads(path.read_text()) if path.exists() else default
+    return json.loads(path.read_text(encoding="utf-8")) if path.exists() else default
 
 
 def write_text(path: Path, text: str) -> None:
@@ -53,7 +73,7 @@ def write_text(path: Path, text: str) -> None:
 
 def write_changed(path: Path, text: str) -> None:
     """`write_text` but for the same text: rewritten unchanged, a file would look changed (`web.review_kept`, `sync.changed`)."""
-    if not path.exists() or path.read_text() != text:
+    if not path.exists() or path.read_text(encoding="utf-8") != text:
         write_text(path, text)
 
 
@@ -63,7 +83,7 @@ def write_secret(path: Path, text: str) -> None:
     try:
         with os.fdopen(os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600), "w", encoding="utf-8") as f:
             f.write(text)
-        os.replace(temporary, path)
+        replace(temporary, path)
     except BaseException:
         temporary.unlink(missing_ok=True)
         raise
@@ -90,8 +110,9 @@ def aliases(match: Path) -> list[str]:
 
 
 def write_source(match: Path, video: Path, court: Path, squad: tuple[int, int] | None = None) -> None:
-    """What `match` was made from, in its SOURCE: the review opens it from that."""
-    given = {"video": str(video), "court": str(court), "squad": f"{squad[0]},{squad[1]}" if squad else None, "aliases": aliases(match)}
+    """What `match` was made from, in its SOURCE: the review opens it from that. Its paths with `/`, which every system reads (a
+    match goes from one machine to another)."""
+    given = {"video": Path(video).as_posix(), "court": Path(court).as_posix(), "squad": f"{squad[0]},{squad[1]}" if squad else None, "aliases": aliases(match)}
     write_changed(match / SOURCE, json.dumps(given, indent=1) + "\n")
 
 

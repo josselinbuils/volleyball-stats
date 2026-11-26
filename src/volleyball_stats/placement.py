@@ -150,7 +150,7 @@ def fit(clicks: dict, name: str, outputs: Path) -> dict:
         raise FileNotFoundError(folder / BACKGROUND)
     filmed = files.read_json(folder / CAMERA, None)
     found = lens.for_camera(outputs, filmed) if isinstance(filmed, dict) else None
-    known = json.loads(found.read_text()) if found else None
+    known = json.loads(found.read_text(encoding="utf-8")) if found else None
     if known and list(known["camera"]["size"]) != [image.shape[1], image.shape[0]]:
         known = None
     calibration = court.calibrate(image, {n: tuple(p) for n, p in clicks.items()}, known)
@@ -182,7 +182,7 @@ def main() -> None:
     if args.command == "test":
         result = test(args.video, args.outputs, jobs.tell)
     elif args.command == "fit":
-        result = fit(json.loads(args.clicks.read_text()), args.court, args.outputs)
+        result = fit(json.loads(args.clicks.read_text(encoding="utf-8")), args.court, args.outputs)
     else:
         result = judge_file(args.court)
     print(json.dumps(result))

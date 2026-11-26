@@ -212,7 +212,7 @@ def main() -> None:
     names = sorted(p.stem for p in folder.glob("*.npz"))
     stats = dict(frames=0, flights=0, accepted=0, off=0, off_total=0, ball=0, unsure=0, offscreen=0, skip=0, ball_with512=0, ball_only1024=0, clip_ball=0, clip_none=0, clip_frames=0, rallies=0)
     off_rows: list[tuple] = []
-    with (folder / "labels.csv").open("w", newline="") as fh:
+    with (folder / "labels.csv").open("w", newline="", encoding="utf-8") as fh:
         writer = csv.writer(fh)
         writer.writerow(["unit", "frame", "kind", "x", "y", "flight", "teacher", "residual", "also512"])
         for name in names[: args.limit]:
@@ -234,11 +234,11 @@ def main() -> None:
                 stats[r[1]] += 1
                 if r[1] == "ball":
                     stats["ball_only1024" if r[5] == "1024" and not r[7] else "ball_with512"] += 1
-    with (folder / "offpath.csv").open("w", newline="") as fh:
+    with (folder / "offpath.csv").open("w", newline="", encoding="utf-8") as fh:
         writer = csv.writer(fh)
         writer.writerow(["unit", "frame", "x", "y", "peak", "path_x", "path_y"])
         writer.writerows(off_rows)
-    (folder / "label_stats.json").write_text(json.dumps(stats, indent=1))
+    (folder / "label_stats.json").write_text(json.dumps(stats, indent=1), encoding="utf-8")
     print(json.dumps(stats))
 
 

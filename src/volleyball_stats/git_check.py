@@ -17,7 +17,7 @@ CHECKED_ENV = "VOLLEYBALL_STATS_GIT_CHECKED"
 def _git(root: Path, *args: str) -> subprocess.CompletedProcess:
     # A new session has no terminal: ssh cannot stop to ask a passphrase.
     env = {**os.environ, "GIT_TERMINAL_PROMPT": "0"}
-    return subprocess.run(["git", "-C", str(root), *args], capture_output=True, text=True, timeout=5, stdin=subprocess.DEVNULL, start_new_session=True, env=env)
+    return subprocess.run(["git", "-C", str(root), *args], capture_output=True, text=True, timeout=5, stdin=subprocess.DEVNULL, start_new_session=True, env=env, encoding="utf-8", errors="replace")
 
 
 def behind(root: Path) -> dict | None:

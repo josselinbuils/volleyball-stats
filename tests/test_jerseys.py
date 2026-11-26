@@ -26,7 +26,7 @@ class TestAgreed:
 class TestLoad:
     def test_drops_the_rarely_read_numbers(self, tmp_path):
         rows = ["frame,track,number"] + [f"{f},1,22" for f in range(60)] + ["100,2,2"]
-        (tmp_path / "jerseys.csv").write_text("\n".join(rows) + "\n")
+        (tmp_path / "jerseys.csv").write_text("\n".join(rows) + "\n", encoding="utf-8")
 
         assert set(load(tmp_path).values()) == {22}
 
@@ -35,12 +35,12 @@ class TestCacheStamp:
     def test_changes_with_the_video_the_code_and_what_is_given(self, tmp_path):
         video, code = tmp_path / "v.mp4", tmp_path / "code.py"
         video.write_bytes(b"12")
-        code.write_text("a")
+        code.write_text("a", encoding="utf-8")
         first = files.cache_stamp(video, [code])
 
         assert files.cache_stamp(video, [code]) == first
         assert files.cache_stamp(video, [code], "other") != first
-        code.write_text("b")
+        code.write_text("b", encoding="utf-8")
         changed = files.cache_stamp(video, [code])
         assert changed != first
         video.write_bytes(b"123")
@@ -50,16 +50,16 @@ class TestCacheStamp:
 class TestPicturesRead:
     def test_readings_of_another_stamp_or_of_the_old_format_are_out_of_date(self, tmp_path):
         path = tmp_path / jerseys.PICTURES
-        path.write_text(json.dumps({"stamp": "a", "read": {"1:0,0,1,1": 8}}))
+        path.write_text(json.dumps({"stamp": "a", "read": {"1:0,0,1,1": 8}}), encoding="utf-8")
 
         assert jerseys.pictures_read(tmp_path, "a") == {"1:0,0,1,1": 8}
         assert jerseys.pictures_read(tmp_path, "b") == {}
-        path.write_text(json.dumps({"1:0,0,1,1": 8}))
+        path.write_text(json.dumps({"1:0,0,1,1": 8}), encoding="utf-8")
         assert jerseys.pictures_read(tmp_path, "a") == {}
 
     def test_only_new_pictures_are_read(self, tmp_path):
         path = tmp_path / jerseys.PICTURES
-        path.write_text(json.dumps({"stamp": "a", "read": {"1:0,0,1,1": 8}}))
+        path.write_text(json.dumps({"stamp": "a", "read": {"1:0,0,1,1": 8}}), encoding="utf-8")
         asked = []
 
         jerseys.read_pictures(tmp_path, [(1, (0, 0, 1, 1))], lambda *args: asked.append(args), "a")

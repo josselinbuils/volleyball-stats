@@ -12,9 +12,9 @@ from volleyball_stats import actions, learn, web
 
 BASE = Path("outputs/benchmarks/corrections")
 name, run = sys.argv[1], sys.argv[2]
-truth = json.loads((BASE / name / "truth.json").read_text())
+truth = json.loads((BASE / name / "truth.json").read_text(encoding="utf-8"))
 folder = BASE / name / "runs" / run / name
-fixes = json.loads((BASE / name / "runs" / run / "corrections.json").read_text())
+fixes = json.loads((BASE / name / "runs" / run / "corrections.json").read_text(encoding="utf-8"))
 fps = truth["fps"]
 rows = learn.read_rows(folder / "actions.csv")
 windows = learn.read_rows(folder / "rallies.csv")

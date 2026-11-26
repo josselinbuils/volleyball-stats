@@ -54,7 +54,7 @@ def main() -> None:
     parser.add_argument("--court", type=Path, required=True)
     args = parser.parse_args()
     data, players = web.match_data(args.match, args.video, Calibration.load(args.court))
-    text = (args.match / "review" / "ball3d.js").read_text()
+    text = (args.match / "review" / "ball3d.js").read_text(encoding="utf-8")
     flat = json.loads(text[text.index("=") + 1 :].strip().rstrip(";"))
     places = {int(flat[k]): np.array(flat[k + 1 : k + 4]) for k in range(0, len(flat), 4)}
     report("tracked", players["samples"], data, players["step"], places)

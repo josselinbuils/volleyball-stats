@@ -49,7 +49,7 @@ class TestUnnamed:
                 {"t": 5.0, "type": "floor", "team": 1, "person": None},
             ],
         }
-        (tmp_path / "data.js").write_text(f"window.MATCH = {json.dumps(data)};\n")
+        (tmp_path / "data.js").write_text(f"window.MATCH = {json.dumps(data)};\n", encoding="utf-8")
 
         assert unnamed(tmp_path, 50.0) == {100: "brief", 150: "unknown", 200: "unknown"}
         assert unnamed(tmp_path / "none", 50.0) == {}

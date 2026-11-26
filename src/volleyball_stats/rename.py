@@ -44,7 +44,7 @@ def rename_match(match: Path, new: str, data: Path | None = None) -> Path:
     source = match / files.SOURCE
     if not source.exists() or not (match / "report.md").exists():
         raise ValueError(f"{match}: its pipeline has not ended")
-    given = json.loads(source.read_text())
+    given = json.loads(source.read_text(encoding="utf-8"))
     video, court = Path(given["video"]), Path(given["court"])
     # Where its video is: in its own folder, or still directly in the data folder.
     data = data or (video.parent.parent if video.parent.name == old else video.parent)
@@ -92,10 +92,10 @@ def rename_match(match: Path, new: str, data: Path | None = None) -> Path:
     if config:
         files.write_text(target / matches.PUBLISH, json.dumps(config, indent=2, ensure_ascii=False) + "\n")
     given["aliases"] = sorted({*given.get("aliases", []), old} - {new})
-    files.write_text(target / files.SOURCE, json.dumps({**given, "video": str(video), "court": str(court)}, indent=1) + "\n")
+    files.write_text(target / files.SOURCE, json.dumps({**given, "video": video.as_posix(), "court": Path(court).as_posix()}, indent=1) + "\n")
     roster = files.root(target) / ROSTER
     if roster.exists():
-        saved = json.loads(roster.read_text())
+        saved = json.loads(roster.read_text(encoding="utf-8"))
         for player in saved["players"]:
             if old in player.get("vectors", {}):
                 player["vectors"][new] = player["vectors"].pop(old)

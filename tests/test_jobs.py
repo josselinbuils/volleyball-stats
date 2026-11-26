@@ -41,9 +41,12 @@ class TestJobs:
 
     def test_reads_the_last_line_shown(self, tmp_path):
         log = tmp_path / "a.log"
-        log.write_text("start\nframe=1 time=00:00:01\rframe=2 time=00:00:02\nerror: no court\n")
+        log.write_text("start\nframe=1 time=00:00:01\rframe=2 time=00:00:02\nerror: no court\n", encoding="utf-8")
         assert jobs.tail(log).split("\n")[1] == "frame=2 time=00:00:02"
         assert jobs.error_of(jobs.tail(log)) == "error: no court"
+        # A log written on Windows.
+        log.write_bytes(b"start\r\nframe=1\rframe=2\r\nerror: no court\r\n")
+        assert jobs.tail(log).split("\n")[1] == "frame=2" and jobs.error_of(jobs.tail(log)) == "error: no court"
 
     def test_refuses_ids_out_of_its_folder(self, tmp_path):
         for job_id in ("../roster", "a/b", "..", ""):
@@ -73,14 +76,14 @@ class TestJobs:
     def test_a_dead_runner_is_interrupted(self, tmp_path):
         folder = jobs.folder(tmp_path)
         folder.mkdir()
-        (folder / "x.json").write_text(json.dumps({"id": "x", "kind": "pipeline", "steps": [], "started": 1.0, "pid": 999999999, "step": "pipeline"}))
+        (folder / "x.json").write_text(json.dumps({"id": "x", "kind": "pipeline", "steps": [], "started": 1.0, "pid": 999999999, "step": "pipeline"}), encoding="utf-8")
         found = jobs.state(tmp_path)[0]
         assert not found["running"] and found["failed"] == "pipeline" and found["error"] == "interrupted"
 
 
 class TestStages:
     def test_the_share_done_counts_each_match_as_it_last_took(self, tmp_path):
-        (tmp_path / "took.json").write_text(json.dumps({"mirror": 10.0, "match:long": 80.0, "upload": 10.0}))
+        (tmp_path / "took.json").write_text(json.dumps({"mirror": 10.0, "match:long": 80.0, "upload": 10.0}), encoding="utf-8")
         stages = jobs.Stages(tmp_path / "took.json", ["mirror", "match:long", "match:new", "upload"], {"match": 15.0}, told=False)
         stages.done, stages.key = 90.0, "match:new"
         # 10 + 80 done of 10 + 80 + 15 (a match not measured yet) + 10.
@@ -116,7 +119,7 @@ class TestStages:
             stages.start(key)
         told = [line for line in capsys.readouterr().out.splitlines() if line.startswith(jobs.STAGE)]
         assert told == ["::stage match 1/2", "::stage match 2/2", "::stage shared"]
-        assert set(json.loads((tmp_path / "took.json").read_text())) == {"match:a", "match:b", "shared"}
+        assert set(json.loads((tmp_path / "took.json").read_text(encoding="utf-8"))) == {"match:a", "match:b", "shared"}
 
 
     def test_a_stage_started_again_counts_from_where_it_was_its_pace_and_duration_its_own(self, tmp_path, monkeypatch):
@@ -134,14 +137,14 @@ class TestStages:
         clock[0] += 120.0
         stages.start("page")
         # 150 s for half the tracking: 300 s for a whole one, 3 s per second of video.
-        assert json.loads((tmp_path / "took.json").read_text())["tracking"] == pytest.approx(3.0)
+        assert json.loads((tmp_path / "took.json").read_text(encoding="utf-8"))["tracking"] == pytest.approx(3.0)
 
     def test_a_run_reusing_an_earlier_ones_work_keeps_no_durations(self, tmp_path):
-        (tmp_path / "took.json").write_text(json.dumps({"identity": 0.4}))
+        (tmp_path / "took.json").write_text(json.dumps({"identity": 0.4}), encoding="utf-8")
         stages = jobs.Stages(tmp_path / "took.json", ["identity"], {}, told=False, keep=False)
         for key in ("identity", None):
             stages.start(key)
-        assert json.loads((tmp_path / "took.json").read_text()) == {"identity": 0.4}
+        assert json.loads((tmp_path / "took.json").read_text(encoding="utf-8")) == {"identity": 0.4}
         assert stages.expected("identity") == 0.4
 
 

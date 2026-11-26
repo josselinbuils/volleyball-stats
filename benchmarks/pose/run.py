@@ -46,7 +46,7 @@ def wrists(model, name: str, match: str, folder: Path) -> dict:
     for p in (ROOT / match / "wrists").glob("*.npy"):
         frame, x, y, index, x0, y0 = map(int, p.stem.split("_"))
         files[f"{frame}:{x}:{y}"].append((index, x0, y0, p))
-    reference = json.loads((folder / "wrists.json").read_text())
+    reference = json.loads((folder / "wrists.json").read_text(encoding="utf-8"))
     top_down = not isinstance(model, models.Yolo)
     boxes = candidate_boxes(folder, list(files)) if top_down else {}
     out, count, start = {}, 0, time.perf_counter()
@@ -109,8 +109,8 @@ def jump_poses(model, match: str, folder: Path) -> dict:
 
 
 def relance_boxes(model, folder: Path) -> dict:
-    kept = json.loads((folder / "relances.json").read_text())
-    video = Path(json.loads((folder / "source.json").read_text())["video"])
+    kept = json.loads((folder / "relances.json").read_text(encoding="utf-8"))
+    video = Path(json.loads((folder / "source.json").read_text(encoding="utf-8"))["video"])
     out, start = {}, time.perf_counter()
     frames = sorted(int(k) for k in kept)
     for k, (index, image) in enumerate(decode.frames_at(video, frames)):
@@ -130,15 +130,15 @@ def main() -> None:
     target = ROOT / "runs" / args.model / args.match
     target.mkdir(parents=True, exist_ok=True)
     model = models.load(args.model)
-    speed = json.loads((target / "speed.json").read_text()) if (target / "speed.json").exists() else {}
+    speed = json.loads((target / "speed.json").read_text(encoding="utf-8")) if (target / "speed.json").exists() else {}
     for part in args.only:
         if part == "relances" and not isinstance(model, models.Yolo):
             continue
         print(args.model, args.match, part, flush=True)
         got = {"wrists": lambda: wrists(model, args.model, args.match, folder), "jumps": lambda: jump_poses(model, args.match, folder), "relances": lambda: relance_boxes(model, folder)}[part]()
-        (target / f"{part}.json").write_text(json.dumps(got["cache"], separators=(",", ":")))
+        (target / f"{part}.json").write_text(json.dumps(got["cache"], separators=(",", ":")), encoding="utf-8")
         speed[part] = {k: v for k, v in got.items() if k != "cache"}
-        (target / "speed.json").write_text(json.dumps(speed, indent=1))
+        (target / "speed.json").write_text(json.dumps(speed, indent=1), encoding="utf-8")
         print(part, speed[part], flush=True)
 
 

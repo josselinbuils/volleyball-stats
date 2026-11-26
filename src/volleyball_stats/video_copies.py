@@ -216,8 +216,8 @@ def encode(video: Path, made_by: dict, made: dict[str, Path], heard: Path | None
     shown = timeline.fade(pieces, at)
     spans = read_spans(nearest(times, np.array([p[0] for p in pieces])), nearest(times, np.array([p[1] for p in pieces])))
     with tempfile.TemporaryFile() as read_errors, tempfile.TemporaryFile() as write_errors:
-        reader = subprocess.Popen(reading(video, flags, spans), stdout=subprocess.PIPE, stderr=read_errors)
-        writer = subprocess.Popen(writing(heard, size, made), stdin=subprocess.PIPE, stderr=write_errors)
+        reader = decode.popen(reading(video, flags, spans), stderr=read_errors)
+        writer = decode.popen(writing(heard, size, made), "stdin", stderr=write_errors)
         delivered = (k for a, b in spans for k in range(a, b + 1))
         frame = np.empty(width * high * 3 // 2, np.uint8)
         current, sent = -1, 0
@@ -291,7 +291,7 @@ def recorded(match: Path, light: Path) -> dict | None:
     path = match / MADE
     if not path.exists() or not light.exists():
         return None
-    saved = json.loads(path.read_text())
+    saved = json.loads(path.read_text(encoding="utf-8"))
     return {"map": saved["map"], "camera": saved["camera"]} if saved.get("light") == light.name and saved.get("size") == light.stat().st_size and "map" in saved else None
 
 
@@ -301,7 +301,7 @@ def main() -> None:
     parser.add_argument("made", type=Path, help="How to make them: {map, camera} as timeline.cut gives them (JSON)")
     args = parser.parse_args()
     try:
-        print("\n".join(map(str, make(args.video, json.loads(args.made.read_text())).values())))
+        print("\n".join(map(str, make(args.video, json.loads(args.made.read_text(encoding="utf-8"))).values())))
     except (RuntimeError, subprocess.SubprocessError) as error:
         sys.exit(str(error))
 

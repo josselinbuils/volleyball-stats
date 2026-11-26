@@ -197,7 +197,7 @@ def main() -> None:
                     print("saved best", flush=True)
                 torch.save({"model": model.state_dict(), "opt": opt.state_dict(), "step": step, "best": best, "history": history}, last)
         args.resume = False
-    (ev.WEIGHTS / f"{args.name}_history.json").write_text(json.dumps(history, indent=1))
+    (ev.WEIGHTS / f"{args.name}_history.json").write_text(json.dumps(history, indent=1), encoding="utf-8")
     print("done", (time.time() - start) / 60, "min", flush=True)
 
 

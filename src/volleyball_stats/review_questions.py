@@ -87,7 +87,7 @@ class Questions:
     def load(self) -> None:
         self.table = identity.read_identities(self.match / "identities.csv")
         self.lost, self.double = untaught(self.match, self.table)
-        self.candidates = json.loads((self.match / "identity_candidates.json").read_text())
+        self.candidates = json.loads((self.match / "identity_candidates.json").read_text(encoding="utf-8"))
         self.vectors = prototypes(self.match / "embeddings.npz", self.table)
         self.read = card_numbers(self.table, jerseys.load(self.match, rare=True), self.picture_counts())
         actions = web.read_csv(self.match / "actions.csv") if (self.match / "actions.csv").exists() else []
@@ -486,7 +486,7 @@ class Questions:
         touches, the name and jersey number given, the roster's players of its team (`teams`'
         names) who look most like it and, unnamed, the name proposed (`propose`)."""
         names = identity.named(self.table, identity.read_names(self.match))
-        with open(self.match / "actions.csv") as f:
+        with open(self.match / "actions.csv", encoding="utf-8") as f:
             touches = Counter((int(r["team"]), int(r["identity"])) for r in csv.DictReader(f) if r.get("identity"))
         seconds = identity.on_court(self.table, self.fps)
         out, left = [], identity.leftovers(seconds, names)

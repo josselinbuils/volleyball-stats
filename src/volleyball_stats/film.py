@@ -102,7 +102,7 @@ def use_format(name: str) -> None:
 
 
 def locale() -> dict:
-    return json.loads(LOCALE.read_text())
+    return json.loads(LOCALE.read_text(encoding="utf-8"))
 
 
 def read_page(site: Path) -> dict | None:
@@ -111,7 +111,7 @@ def read_page(site: Path) -> dict | None:
     path = site / "data.js"
     if not path.exists():
         return None
-    text = path.read_text()
+    text = path.read_text(encoding="utf-8")
     page = json.loads(text[text.index("=") + 1 :].strip().rstrip(";"))
     for k, c in enumerate(page["contacts"]):
         c["i"] = k
@@ -128,7 +128,7 @@ def read_page(site: Path) -> dict | None:
 
 def read_picks(match: Path) -> set[int]:
     path = match / PICKS
-    return set(json.loads(path.read_text())) if path.exists() else set()
+    return set(json.loads(path.read_text(encoding="utf-8"))) if path.exists() else set()
 
 
 def write_picks(match: Path, picks: set[int]) -> None:
@@ -313,7 +313,7 @@ def voice_index(site: Path) -> dict | None:
     path = site / "voice" / "index.js"
     if not path.exists():
         return None
-    text = path.read_text()
+    text = path.read_text(encoding="utf-8")
     return json.loads(text[text.index("=") + 1 :].strip().rstrip(";"))
 
 
@@ -736,7 +736,7 @@ class Maker:
         self.found = {int(q): tuple(v) for q, v in cache["found"].items()}
         self.rejected = {int(q): tuple(v) for q, v in cache.get("rejected", {}).items()}
         site = match / "review"
-        text = (site / "ball3d.js").read_text() if (site / "ball3d.js").exists() else "=[]"
+        text = (site / "ball3d.js").read_text(encoding="utf-8") if (site / "ball3d.js").exists() else "=[]"
         flat = json.loads(text[text.index("=") + 1 :].strip().rstrip(";"))
         self.places = {int(flat[k]): flat[k + 1 : k + 4] for k in range(0, len(flat), 4)}
         k = np.array(self.cal.lens["K"], float)
@@ -752,7 +752,7 @@ class Maker:
         pos = self.page["positions"]
         size = pos["files"] * pos["every"] + 1
         for n in range(pos["files"]):
-            text = (self.match / "review" / "positions" / f"{n}.js").read_text()
+            text = (self.match / "review" / "positions" / f"{n}.js").read_text(encoding="utf-8")
             _, columns = json.loads(text[text.index(",") + 1 : text.rindex(")")])
             for person, runs, xs, ys in columns:
                 places = self.tracks.setdefault(person, np.full((size, 2), np.nan))
@@ -821,9 +821,9 @@ class Maker:
         self.masks: dict[tuple, np.ndarray | None] = {}
         self.below = " · ".join(x for x in (film["teams"][film["team"] - 1] if film["teams"] and film["team"] else None, self.long_date(film["date"])) if x).upper()
         silent = out.with_suffix(".video.mp4")
-        encoder = subprocess.Popen(
+        encoder = decode.popen(
             ["ffmpeg", "-y", "-v", "error", "-f", "rawvideo", "-pix_fmt", "bgr24", "-s", f"{WIDTH}x{HEIGHT}", "-r", str(int(FPS)), "-i", "-", *encoding(), "-g", "50", "-pix_fmt", "yuv420p", "-movflags", "+faststart", str(silent)],
-            stdin=subprocess.PIPE,
+            "stdin",
         )
         length, made = max(sum(shot["length"] for shot in film["shots"]), 1e-9), 0.0
         for shot in film["shots"]:

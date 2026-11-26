@@ -349,7 +349,7 @@ def main() -> None:
     fps = decode.fps(args.video)
     rallies = segment(load_track(args.track), whistles(read_audio(args.video)), fps)
     args.out.mkdir(parents=True, exist_ok=True)
-    with open(args.out / f"{args.video.stem}_rallies.csv", "w", newline="") as f:
+    with open(args.out / f"{args.video.stem}_rallies.csv", "w", newline="", encoding="utf-8") as f:
         rows = csv.writer(f)
         rows.writerow(["start_frame", "end_frame"])
         rows.writerows(rallies)

@@ -23,10 +23,10 @@ def main(match: Path, court: Path) -> None:
     P = projection(calibration)
     assert P is not None
     width = (calibration.size or [3840])[0]
-    text = next(p for p in (match / "site" / "data.js", match / "review" / "data.js") if p.exists()).read_text()
+    text = next(p for p in (match / "site" / "data.js", match / "review" / "data.js") if p.exists()).read_text(encoding="utf-8")
     data = json.JSONDecoder().raw_decode(text[text.index("{") :])[0]
     fps = data["fps"]
-    net = (json.loads((match / "teams.json").read_text()).get("net") if (match / "teams.json").exists() else None) or LOWEST_NET_M
+    net = (json.loads((match / "teams.json").read_text(encoding="utf-8")).get("net") if (match / "teams.json").exists() else None) or LOWEST_NET_M
     rallies = defaultdict(list)
     for c in data["contacts"]:
         if c["type"] != "fault" and c.get("f") is not None:
@@ -115,13 +115,13 @@ def main(match: Path, court: Path) -> None:
         return -(origin[2] + (y - origin[1]) / rays[:, 1] * rays[:, 2])
 
     tracks = {}
-    with open(match / "actions.csv") as f:
+    with open(match / "actions.csv", encoding="utf-8") as f:
         next(f)
         for line in f:
             row = line.strip().split(",")
             tracks[int(row[0])] = row[5]
     heads = defaultdict(list)
-    with open(match / "players.csv") as f:
+    with open(match / "players.csv", encoding="utf-8") as f:
         next(f)
         for line in f:
             if int(line[: line.index(",")]) % 25 == 0:

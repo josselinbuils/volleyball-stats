@@ -20,7 +20,7 @@ def jerseys(matches: list[Path]) -> dict[str, dict[str, int]]:
     """Each match's jersey by folded name, from its names given."""
     out = {}
     for m in matches:
-        given = json.loads((m / "player_names.json").read_text())["players"]
+        given = json.loads((m / "player_names.json").read_text(encoding="utf-8"))["players"]
         out[m.name] = {g["name"].casefold(): g["jersey"] for g in given if g.get("name") and g.get("jersey") is not None}
     return out
 

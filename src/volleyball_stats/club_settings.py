@@ -35,7 +35,7 @@ def migrate(folder: Path = FOLDER, old: Path = OLD) -> None:
 
 
 def themes() -> list[dict]:
-    return [{"id": p.parent.name, "name": json.loads(p.read_text())["name"]} for p in sorted(THEMES.glob(f"*/{THEME_FILE}"))]
+    return [{"id": p.parent.name, "name": json.loads(p.read_text(encoding="utf-8"))["name"]} for p in sorted(THEMES.glob(f"*/{THEME_FILE}"))]
 
 
 def read(folder: Path = FOLDER) -> dict | None:
@@ -44,7 +44,7 @@ def read(folder: Path = FOLDER) -> dict | None:
     path = folder / FILE
     if not path.exists():
         return None
-    data = json.loads(path.read_text())
+    data = json.loads(path.read_text(encoding="utf-8"))
     listed = folder / "sponsors" / "sponsors.json"
     sponsors = files.read_json(listed, [])
     return {
@@ -72,7 +72,7 @@ def text_on(background: str) -> str:
 def colours(previous: dict | None, accent: str, header: str) -> tuple[dict, dict]:
     """The light and dark tokens: the previous ones kept, those following the accent and header made again when they
     changed (a preset's tuned values stay while its colours do)."""
-    base = json.loads(EXAMPLE.read_text())
+    base = json.loads(EXAMPLE.read_text(encoding="utf-8"))
     light, dark = {**base["light"], **(previous or {}).get("light", {})}, {**base["dark"], **(previous or {}).get("dark", {})}
     if light["accent"].lower() != accent.lower():
         light.update(accent=accent, accentHover=mix(accent, "#000000", 0.18), accentText=mix(accent, "#000000", 0.18))
@@ -151,7 +151,7 @@ def use(theme: str, folder: Path = FOLDER) -> None:
     shutil.rmtree(folder, ignore_errors=True)
     if theme != "none":
         shutil.copytree(THEMES / theme, folder)
-        data = json.loads((folder / THEME_FILE).read_text())
+        data = json.loads((folder / THEME_FILE).read_text(encoding="utf-8"))
         (folder / THEME_FILE).unlink()
         files.write_text(folder / FILE, json.dumps({**data, **({"teams": teams} if teams is not None else {})}, indent=2, ensure_ascii=False) + "\n")
 

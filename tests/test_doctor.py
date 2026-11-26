@@ -8,8 +8,8 @@ def test_fetch_models_tells_the_models_done_of_those_missing(monkeypatch, tmp_pa
     monkeypatch.setattr(doctor, "model_files", lambda: paths)
     monkeypatch.setattr(ball, "WEIGHTS_PATH", paths[0])
     monkeypatch.setattr(identity, "REID", paths[1])
-    monkeypatch.setattr(ball, "load_model", lambda device: paths[0].write_text("x"))
-    monkeypatch.setattr(identity, "load_reid", lambda device: paths[1].write_text("x"))
+    monkeypatch.setattr(ball, "load_model", lambda device: paths[0].write_text("x", encoding="utf-8"))
+    monkeypatch.setattr(identity, "load_reid", lambda device: paths[1].write_text("x", encoding="utf-8"))
 
     doctor.fetch_models()
 

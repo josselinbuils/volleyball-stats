@@ -26,7 +26,7 @@ import webbrowser
 from pathlib import Path
 from urllib.parse import parse_qs
 
-from volleyball_stats import awake, backup, club_settings, doctor, estimate, feedback, files, git_check, jobs, presence, resume, server, shortcut, sync
+from volleyball_stats import awake, backup, club_settings, doctor, estimate, feedback, files, git_check, jobs, presence, procs, resume, server, shortcut, sync
 
 DATA = Path("data/matches")
 OUTPUTS = Path("outputs")
@@ -76,6 +76,12 @@ APP_BROWSERS = {
     ],
     "mac": [f"{root}/{name}.app" for name in ("Google Chrome", "Microsoft Edge", "Brave Browser", "Chromium") for root in ("/Applications", str(Path.home() / "Applications"))],
     "linux": ["google-chrome", "google-chrome-stable", "chromium", "chromium-browser", "microsoft-edge", "brave-browser"],
+    "windows": [
+        f"{os.environ.get(root, '')}\\{program}"
+        for program in ("Google\\Chrome\\Application\\chrome.exe", "Microsoft\\Edge\\Application\\msedge.exe")
+        for root in ("ProgramFiles", "ProgramFiles(x86)", "LOCALAPPDATA")
+        if os.environ.get(root)
+    ],
 }
 
 
@@ -89,7 +95,9 @@ def app_window(url: str, system: str) -> list[str] | None:
         elif Path(found).exists():
             if system == "mac":
                 return ["open", "-na", found, "--args", f"--app={url}"]
-            windows = subprocess.run(["wslpath", "-w", found], capture_output=True, text=True).stdout.strip()
+            if system == "windows":
+                return [found, f"--app={url}"]
+            windows = subprocess.run(["wslpath", "-w", found], capture_output=True, text=True, encoding="utf-8", errors="replace").stdout.strip()
             # start's first quoted word is a title: one with a space, quoted as is by WSL (an empty one would not be).
             return ["cmd.exe", "/c", "start", "Volleyball Stats", windows, f"--app={url}"] if windows else None
     return None
@@ -132,7 +140,7 @@ def show(url: str) -> None:
     command = app_window(url, system) if opening == "window" else None
     windows = "/mnt/c" if Path("/mnt/c").exists() else None
     if command:
-        subprocess.Popen(command, cwd=windows if system == "wsl" else None, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+        procs.start_apart(command, cwd=windows if system == "wsl" else None, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     elif system == "wsl" and shutil.which("explorer.exe"):
         subprocess.run(["explorer.exe", url], cwd=windows, capture_output=True)
     else:
@@ -157,7 +165,7 @@ def restart_command(args: list[str]) -> list[str]:
 
 
 def windows_drives() -> list[tuple[str, str]]:
-    """Under WSL2, Windows' drives but C, each letter with its name (a card plugged in after WSL started has no /mnt/
+    """Windows' drives but C, each letter with its name (under WSL2, a card plugged in after WSL started has no /mnt/
     folder yet)."""
     try:
         listed = subprocess.run(
@@ -178,8 +186,8 @@ def windows_drives() -> list[tuple[str, str]]:
 def windows_home() -> Path | None:
     """Under WSL2, the Windows user's folder, where the downloads are."""
     try:
-        profile = subprocess.run(["cmd.exe", "/c", "echo %USERPROFILE%"], capture_output=True, text=True, timeout=10, stdin=subprocess.DEVNULL, cwd="/mnt/c").stdout.strip()
-        found = subprocess.run(["wslpath", profile], capture_output=True, text=True, timeout=10).stdout.strip()
+        profile = subprocess.run(["cmd.exe", "/c", "echo %USERPROFILE%"], capture_output=True, text=True, timeout=10, stdin=subprocess.DEVNULL, cwd="/mnt/c", encoding="utf-8", errors="replace").stdout.strip()
+        found = subprocess.run(["wslpath", profile], capture_output=True, text=True, timeout=10, encoding="utf-8", errors="replace").stdout.strip()
     except (OSError, subprocess.SubprocessError):
         return None
     return Path(found) if found and Path(found).is_dir() else None
@@ -193,7 +201,7 @@ def mount(drive: str) -> Path:
     if not os.path.ismount(target):
         run = subprocess.run(
             ["wsl.exe", *(["-d", os.environ["WSL_DISTRO_NAME"]] if os.environ.get("WSL_DISTRO_NAME") else []), "-u", "root", "--", "sh", "-c", f"mkdir -p {target} && mount -t drvfs {drive.upper()}: {target}"],
-            capture_output=True, text=True, timeout=60, stdin=subprocess.DEVNULL, cwd="/mnt/c",
+            capture_output=True, text=True, timeout=60, stdin=subprocess.DEVNULL, cwd="/mnt/c", encoding="utf-8", errors="replace",
         )
         if run.returncode or not os.path.ismount(target):
             raise RuntimeError("mount")
@@ -218,10 +226,18 @@ def release(paths: list[Path]) -> None:
 
 
 def sources() -> list[dict]:
-    """The folders where a match's video may be: the cards and drives mounted, those with a camera's DCIM first; under
-    WSL2, each Windows drive (mounted when picked) and the Windows downloads."""
+    """The folders where a match's video may be: the cards and drives mounted, those with a camera's DCIM first; on
+    Windows each drive (under WSL2 mounted when picked, with Windows' downloads)."""
     user = os.environ.get("USER", "")
     found = []
+    if doctor.system() == "windows":
+        for drive, label in windows_drives():
+            path = Path(f"{drive}:\\")
+            try:
+                card = (path / "DCIM").is_dir()
+            except OSError:
+                card = False
+            found.append({"path": str(path), "name": f"{label} ({drive}:)" if label else f"{drive}:", "card": card})
     if doctor.system() == "wsl":
         for drive, label in windows_drives():
             path = Path("/mnt") / drive.lower()
@@ -236,7 +252,7 @@ def sources() -> list[dict]:
         for name in ("Downloads", "Videos", "Desktop"):
             if home and (home / name).is_dir():
                 found.append({"path": str(home / name), "name": name, "card": False})
-    for mount_point in MOUNTS[doctor.system()] if doctor.system() != "wsl" else []:
+    for mount_point in MOUNTS.get(doctor.system(), []):
         base = Path(mount_point.format(user=user))
         if not base.is_dir():
             continue
@@ -279,10 +295,10 @@ PICK_MAC = {
 
 
 def picker() -> str | None:
-    """How this machine opens its own file window: "mac" (Finder), "wsl" (Windows'), a Linux desktop's "zenity" or
-    "kdialog"; None without one."""
+    """How this machine opens its own file window: "mac" (Finder), "windows" or "wsl" (Windows'), a Linux desktop's
+    "zenity" or "kdialog"; None without one."""
     kind = doctor.system()
-    if kind in ("mac", "wsl"):
+    if kind in ("mac", "wsl", "windows"):
         return kind
     if not (os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY")):
         return None
@@ -310,6 +326,7 @@ def pick(what: str = "files") -> list[str] | None:
     command, cwd = {
         "mac": (["osascript", *[a for line in PICK_MAC[what] for a in ("-e", line)]], None),
         "wsl": (["powershell.exe", "-NoProfile", "-STA", "-Command", PICK_WINDOWS[what]], "/mnt/c" if Path("/mnt/c").exists() else None),
+        "windows": (["powershell.exe", "-NoProfile", "-STA", "-Command", PICK_WINDOWS[what]], None),
         "zenity": (["zenity", "--file-selection", "--directory"] if folder else ["zenity", "--file-selection", "--multiple", "--separator=\n", "--file-filter=MP4, MOV | *.mp4 *.MP4 *.mov *.MOV", "--file-filter=* | *"], None),
         "kdialog": (["kdialog", "--getexistingdirectory", str(Path.home())] if folder else ["kdialog", "--getopenfilename", str(Path.home()), "MP4, MOV (*.mp4 *.MP4 *.mov *.MOV)", "--multiple", "--separate-output"], None),
     }.get(kind, (None, None))
@@ -473,7 +490,7 @@ def background(name: str) -> None:
 def video_of(name: str) -> Path:
     source = MATCHES / name / files.SOURCE
     if source.exists():
-        return Path(json.loads(source.read_text())["video"])
+        return Path(json.loads(source.read_text(encoding="utf-8"))["video"])
     return DATA / name / f"{name}.mp4"
 
 
@@ -632,18 +649,14 @@ def board() -> bytes:
 
 def commands_running() -> str:
     """The pipelines running on this machine, their command lines: a match's name in it runs."""
-    try:
-        lines = subprocess.run(["ps", "-Ao", "command="], capture_output=True, text=True, timeout=5).stdout.splitlines()
-    except (OSError, subprocess.SubprocessError):
-        return ""
-    return "\n".join(line for line in lines if "volleyball_stats.match " in line)
+    return "\n".join(line for line in procs.command_lines() if "volleyball_stats.match " in line)
 
 
 def court_of(name: str) -> Path:
     """The match's court: the app's, else the one its pipeline last ran with (source.json)."""
     court, source = MATCHES / name / COURT, MATCHES / name / files.SOURCE
     if not court.exists() and source.exists():
-        return Path(json.loads(source.read_text())["court"])
+        return Path(json.loads(source.read_text(encoding="utf-8"))["court"])
     return court
 
 
@@ -697,7 +710,7 @@ def played_teams() -> list[str]:
     """The teams' names of the matches, most matches first."""
     counts: dict[str, int] = {}
     for path in MATCHES.glob("*/teams.json"):
-        for name in {t.get("name") for t in json.loads(path.read_text()).get("teams") or []}:
+        for name in {t.get("name") for t in json.loads(path.read_text(encoding="utf-8")).get("teams") or []}:
             if name:
                 counts[name] = counts.get(name, 0) + 1
     return sorted(counts, key=lambda n: (-counts[n], n))
@@ -708,7 +721,7 @@ def last_net() -> float:
     from volleyball_stats.ball3d import MEN_NET_M
 
     for path in sorted(MATCHES.glob("*/teams.json"), reverse=True):
-        if net := json.loads(path.read_text()).get("net"):
+        if net := json.loads(path.read_text(encoding="utf-8")).get("net"):
             return float(net)
     return MEN_NET_M
 
@@ -716,7 +729,7 @@ def last_net() -> float:
 def swap(name: str) -> None:
     """The teams' sides swapped: the first is the one on the left at the first rally."""
     path = MATCHES / name / "teams.json"
-    saved = json.loads(path.read_text())
+    saved = json.loads(path.read_text(encoding="utf-8"))
     saved["teams"] = saved["teams"][::-1]
     files.write_text(path, json.dumps(saved, indent=2, ensure_ascii=False) + "\n")
 
@@ -829,7 +842,7 @@ def export_state(listed: list[dict]) -> dict:
     done = zipped.exists() and not (job and (job["running"] or job.get("failed")))
     # The matches it holds, from the record of the job that made it.
     record = jobs.record_of(OUTPUTS, EXPORT)
-    args = json.loads(record.read_text())["steps"][0]["args"] if job and record.exists() else None
+    args = json.loads(record.read_text(encoding="utf-8"))["steps"][0]["args"] if job and record.exists() else None
     held = [Path(args[k + 1]).name for k, a in enumerate(args) if a == "--match"] if args else None
     folder = next((args[k + 1] for k, a in enumerate(args) if a == "--folder"), matches.EXPORT_FOLDER) if args else matches.EXPORT_FOLDER
     keys = ("name", "path", "date", "title", "teams")
@@ -864,12 +877,12 @@ def models_state() -> dict | None:
 def update() -> None:
     """The code brought up to date (git pull), then the dependencies (uv sync); RuntimeError with git's or uv's reason."""
     env = {**os.environ, "GIT_TERMINAL_PROMPT": "0"}
-    pull = subprocess.run(["git", "-C", str(git_check.ROOT), "pull", "--ff-only", "--autostash"], capture_output=True, text=True, env=env, stdin=subprocess.DEVNULL, timeout=120)
+    pull = subprocess.run(["git", "-C", str(git_check.ROOT), "pull", "--ff-only", "--autostash"], capture_output=True, text=True, env=env, stdin=subprocess.DEVNULL, timeout=120, encoding="utf-8", errors="replace")
     if pull.returncode:
         raise RuntimeError(((pull.stderr.strip() or pull.stdout.strip()).splitlines() or [f"git pull: exit {pull.returncode}"])[-1])
     tool = uv()
     if tool:
-        sync = subprocess.run([tool, "sync", "--inexact", "--project", str(git_check.ROOT)], capture_output=True, text=True, timeout=1800)
+        sync = subprocess.run([tool, "sync", "--inexact", "--project", str(git_check.ROOT)], capture_output=True, text=True, timeout=1800, encoding="utf-8", errors="replace")
         if sync.returncode:
             raise RuntimeError((sync.stderr.strip().splitlines() or [f"uv sync: exit {sync.returncode}"])[-1])
 
@@ -895,7 +908,7 @@ MATCH_JOBS = ("import", "court", "pipeline")
 def teams_of(name: str | None) -> list[str] | None:
     """The match's two teams' names, for a task's title."""
     try:
-        return [team.get("name") for team in json.loads((MATCHES / str(name) / "teams.json").read_text())["teams"]]
+        return [team.get("name") for team in json.loads((MATCHES / str(name) / "teams.json").read_text(encoding="utf-8"))["teams"]]
     except (OSError, ValueError, KeyError, TypeError, AttributeError):
         return None
 
@@ -1177,6 +1190,11 @@ def restart_after(args: list[str], lock=None) -> None:
         if lock:
             lock.acquire()
         command = restart_command(args)
+        if procs.WINDOWS:
+            # No exec there: the new server starts apart (out of `uv run`'s job, which ends with this process), this one
+            # ends; the log keeps what it prints.
+            procs.start_apart(command, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            os._exit(0)
         os.execv(command[0], command)
 
     threading.Thread(target=replace, daemon=True).start()
@@ -1229,7 +1247,7 @@ def already_open(port: int) -> bool:
 def lowered() -> bool:
     """Whether this process runs below the normal priority: zsh lowers its background jobs' (bg_nice), and nothing
     without root brings it back, for the server nor its jobs."""
-    return os.nice(0) > 0
+    return procs.priority() > 0
 
 
 def parse(args: list[str]) -> tuple[str | None, list[str]]:
@@ -1266,7 +1284,7 @@ def main() -> None:
             open_browser(f"http://127.0.0.1:{port}/")
         return
     if lowered():
-        sys.exit(f"Started at a lowered priority (nice {os.nice(0)}), which the jobs it starts would inherit: start it from "
+        sys.exit(f"Started at a lowered priority (nice {procs.priority()}), which the jobs it starts would inherit: start it from "
                  "its shortcut, or not as a background job of zsh (`setopt no_bg_nice` first).")
     shortcut.refresh()
     sys.argv = [sys.argv[0], *args, *([] if opening else ["--no-browser"]), *(["--with-window"] if opening == "window" else [])]

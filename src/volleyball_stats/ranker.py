@@ -70,4 +70,4 @@ def reads_width(model: dict) -> bool:
 
 
 def load(path: Path = WEIGHTS) -> dict | None:
-    return json.loads(path.read_text()) if path.exists() else None
+    return json.loads(path.read_text(encoding="utf-8")) if path.exists() else None

@@ -449,7 +449,7 @@ def replay_lines(data: dict) -> dict[str, str]:
 
 def read_spoken(match: Path) -> dict[str, str]:
     path = match / "spoken.json"
-    return json.loads(path.read_text()) if path.exists() else {}
+    return json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
 
 
 def spelled(text: str, spoken: dict[str, str]) -> str:
@@ -508,7 +508,7 @@ def voice_index(match: Path, data: dict, walls: tuple[float, ...] = ()) -> dict 
     folder = match / "voice"
     if not (folder / "durations.json").exists():
         return None
-    durations = json.loads((folder / "durations.json").read_text())
+    durations = json.loads((folder / "durations.json").read_text(encoding="utf-8"))
     spoken = read_spoken(match)
     lines = fitted(script(data), durations, spoken, walls)
     if not lines:

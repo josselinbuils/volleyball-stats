@@ -30,7 +30,7 @@ TYPES = ("serve", "pass", "dig", "set", "attack", "block", "floor", "net")
 def load_ground_truth(path: Path) -> list[dict]:
     """One dict per rally: start, end, contacts {frame: type}, net [frames]."""
     found: dict[str, dict] = {}
-    with open(path) as f:
+    with open(path, encoding="utf-8") as f:
         for row in csv.DictReader(f):
             rally = found.setdefault(row["rally"], {"contacts": {}, "net": []})
             if row["event"] in ("start", "end"):
@@ -44,7 +44,7 @@ def load_ground_truth(path: Path) -> list[dict]:
 
 def calibration() -> court.Calibration:
     """Least squares on the hand-located line landmarks; the posts' distance to the court is unknown."""
-    points = json.loads(COURT.read_text())["points"]
+    points = json.loads(COURT.read_text(encoding="utf-8"))["points"]
     return court.fit({name: tuple(p) for name, p in points.items() if not name.startswith("post")}, ransac=False)
 
 

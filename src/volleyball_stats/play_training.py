@@ -76,7 +76,7 @@ def sources(match: Path) -> list[tuple[Path, Path]]:
     checked, the review's page and the video here."""
     found = []
     for source in sorted(match.parent.glob(f"*/{files.SOURCE}")):
-        video = ROOT / json.loads(source.read_text())["video"]
+        video = ROOT / json.loads(source.read_text(encoding="utf-8"))["video"]
         if video.exists() and spans(source.parent) is not None:
             found.append((source.parent, video))
     return found
@@ -90,7 +90,7 @@ def signature(found: list[tuple[Path, Path]]) -> dict[str, str]:
 def trained(folder: Path) -> dict:
     """What the weights of `folder` were trained on (TRAINED), empty without weights."""
     path = folder / TRAINED
-    return json.loads(path.read_text()) if path.exists() and playing.stamp(folder) is not None else {}
+    return json.loads(path.read_text(encoding="utf-8")) if path.exists() and playing.stamp(folder) is not None else {}
 
 
 def due(match: Path) -> list[tuple[Path, Path]]:
@@ -105,7 +105,7 @@ def due(match: Path) -> list[tuple[Path, Path]]:
 def refused(folder: Path) -> dict[str, str] | None:
     """The matches (`signature`) the check last refused to train the weights of `folder` on."""
     path = folder / REFUSED
-    return json.loads(path.read_text())["matches"] if path.exists() else None
+    return json.loads(path.read_text(encoding="utf-8"))["matches"] if path.exists() else None
 
 
 def held_out(found: list[tuple[Path, Path]], folder: Path) -> tuple[Path, Path] | None:
@@ -134,7 +134,7 @@ def no_model(match: Path, video: Path, share: jobs.Share = jobs.quiet) -> tuple[
     from volleyball_stats.court import Calibration
 
     fps = decode.fps(video)
-    calibration = Calibration.load(ROOT / json.loads((match / files.SOURCE).read_text())["court"])
+    calibration = Calibration.load(ROOT / json.loads((match / files.SOURCE).read_text(encoding="utf-8"))["court"])
     track = rallies.load_track(match / "ball.csv")
     rows = attribution.read_players(match / "players.csv") if (match / "players.csv").exists() else None
     whistles = rallies.whistles(rallies.read_audio(video, len(track) / fps, share))
@@ -165,7 +165,7 @@ def frames(video: Path, cache: Path, name: str) -> np.ndarray:
     shape = (playing.HEIGHT, playing.WIDTH, 3)
     made = {"size": video.stat().st_size, "time": int(video.stat().st_mtime)}
     if path.exists() and note.exists():
-        known = json.loads(note.read_text())
+        known = json.loads(note.read_text(encoding="utf-8"))
         if {k: known.get(k) for k in made} == made:
             return np.memmap(path, np.uint8, "r", shape=(known["count"], *shape))
     cache.mkdir(parents=True, exist_ok=True)

@@ -33,9 +33,9 @@ class TestWrite:
         for _ in range(5):
             writer.write(np.zeros((48, 64, 3), np.uint8))
         writer.release()
-        (tmp_path / "tracks.csv").write_text("track,team\n1,1\n")
+        (tmp_path / "tracks.csv").write_text("track,team\n1,1\n", encoding="utf-8")
         # A box of the 4K original, far past this copy's 64 px.
-        (tmp_path / "players.csv").write_text("frame,track,team,x1,y1,x2,y2\n0,1,left,100,10,200,40\n")
+        (tmp_path / "players.csv").write_text("frame,track,team,x1,y1,x2,y2\n0,1,left,100,10,200,40\n", encoding="utf-8")
 
         with pytest.raises(ValueError):
             write(tmp_path, video, {1}, tmp_path / "out.mp4")

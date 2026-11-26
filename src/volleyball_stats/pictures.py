@@ -253,7 +253,7 @@ def photos(match: Path, video: Path, people: dict[int, dict], folder: Path, team
         side = ROOM * (y2 - y1)
         return (x1 + x2) / 2 - side >= 0 and (x1 + x2) / 2 + side <= width and y1 > 0 and y2 < height - 1
 
-    with open(match / "rallies.csv") as f:
+    with open(match / "rallies.csv", encoding="utf-8") as f:
         rallies = [(int(r["start_frame"]), int(r["end_frame"])) for r in csv.DictReader(f)]
     margin = IN_PLAY_S * fps
 
@@ -479,7 +479,7 @@ def swap_photo(match: Path, video: Path, site: Path, team: int, number: int, fra
     files.write_text(shown, json.dumps(taken))
     offered = match / PHOTO_CANDIDATES
     if offered.exists():
-        found = json.loads(offered.read_text())
+        found = json.loads(offered.read_text(encoding="utf-8"))
         mine = found.get(f"{team}:{number}", [])
         found[f"{team}:{number}"] = [{"frame": frame, "box": list(box)}, *(m for m in mine if (m["frame"], tuple(m["box"])) != (frame, box))]
         files.write_text(offered, json.dumps(found))

@@ -115,7 +115,7 @@ def read_hosted(match: Path, code: bool = True) -> dict:
     path, sent = match / HOSTED, match / HOSTED_PAGE
     saved = files.read_json(path)
     state = hosted_state(saved, page_stamp(match, tuple(saved.get("pages", OLD_STAMPED)) if saved else STAMPED), date.today())
-    state["changes"] = page_changes(json.loads(sent.read_text()), page_content(match)) if state["behind"] and sent.exists() else None
+    state["changes"] = page_changes(json.loads(sent.read_text(encoding="utf-8")), page_content(match)) if state["behind"] and sent.exists() else None
     # An upload before the shared code stamped its pages' code too: late only for its data now.
     if state["behind"] and saved and saved.get("pages", OLD_STAMPED) and state["changes"] == []:
         state["behind"], state["changes"] = False, None

@@ -12,12 +12,12 @@ def make(outputs, name: str, checked: list[int], video: bool = True, rallies: li
     """A match folder with its review's page, the rallies of `checked` checked and its video beside the outputs."""
     match = outputs / "matches" / name
     (match / "review").mkdir(parents=True)
-    (match / "review" / "data.js").write_text("window.MATCH = " + json.dumps({"rallies": rallies, "contacts": CONTACTS}) + ";")
-    (match / "identity_answers.json").write_text(json.dumps({"log": [{"id": "ok", "checked": checked}]}))
+    (match / "review" / "data.js").write_text("window.MATCH = " + json.dumps({"rallies": rallies, "contacts": CONTACTS}) + ";", encoding="utf-8")
+    (match / "identity_answers.json").write_text(json.dumps({"log": [{"id": "ok", "checked": checked}]}), encoding="utf-8")
     path = outputs / f"{name}.mp4"
     if video:
         path.write_bytes(b"video")
-    (match / "source.json").write_text(json.dumps({"video": str(path), "court": "court.json"}))
+    (match / "source.json").write_text(json.dumps({"video": str(path), "court": "court.json"}), encoding="utf-8")
     return match
 
 
@@ -25,7 +25,7 @@ def weights(outputs, matches: dict[str, str]) -> None:
     folder = outputs / playing.WEIGHTS
     folder.mkdir(parents=True, exist_ok=True)
     (folder / playing.MODEL).touch()
-    (folder / play_training.TRAINED).write_text(json.dumps({"matches": matches}))
+    (folder / play_training.TRAINED).write_text(json.dumps({"matches": matches}), encoding="utf-8")
 
 
 class TestSpans:
@@ -91,6 +91,7 @@ class TestFrames:
 
         assert first.shape == (3, playing.HEIGHT, playing.WIDTH, 3) and [int(f[0, 0, 0]) for f in again] == [0, 1, 2] and len(calls) == 1
 
+        del first, again  # Windows replaces no file a view holds open
         video.write_bytes(b"another video")
         play_training.frames(video, tmp_path / "cache", "match")
         assert len(calls) == 2

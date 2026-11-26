@@ -16,7 +16,7 @@ import numpy as np
 
 
 def read(path: Path) -> tuple[np.ndarray, np.ndarray]:
-    rows = list(csv.DictReader(path.open()))
+    rows = list(csv.DictReader(path.open(encoding="utf-8")))
     seen = np.array([r["visible"] == "1" for r in rows])
     xy = np.array([[float(r["x"]), float(r["y"])] if r["x"] else [np.nan, np.nan] for r in rows])
     return seen, xy
@@ -33,11 +33,11 @@ def main() -> None:
     args = parser.parse_args()
     (so, xo), (sn, xn) = read(args.old), read(args.new)
     inside = np.zeros(len(so), bool)
-    for r in csv.DictReader(args.rallies.open()):
+    for r in csv.DictReader(args.rallies.open(encoding="utf-8")):
         inside[max(0, int(r["start_frame"]) - round(args.lead * args.fps)) : int(r["end_frame"]) + round(args.tail * args.fps) + 1] = True
     take = inside & sn & (~so if args.mode == "fill" else True)
     seen, xy = np.where(take, sn, so), np.where(take[:, None], xn, xo)
-    with args.out.open("w", newline="") as f:
+    with args.out.open("w", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
         w.writerow(["frame", "visible", "x", "y"])
         for i in range(len(seen)):

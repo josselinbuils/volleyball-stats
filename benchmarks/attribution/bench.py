@@ -38,7 +38,7 @@ POSE_CONF, POSE_IOU, VETO = 0.7, 0.5, 0.4
 def load_contacts(path: Path) -> list[dict]:
     """One dict per rally: start, end, contacts {frame: type}, net [frames]."""
     found: dict[str, dict] = {}
-    with open(path) as f:
+    with open(path, encoding="utf-8") as f:
         for row in csv.DictReader(f):
             rally = found.setdefault(row["rally"], {"contacts": {}, "net": []})
             if row["event"] in ("start", "end"):
@@ -51,7 +51,7 @@ def load_contacts(path: Path) -> list[dict]:
 
 
 def load_touchers(path: Path) -> dict[int, dict]:
-    with open(path) as f:
+    with open(path, encoding="utf-8") as f:
         return {int(r["frame"]): r for r in csv.DictReader(f)}
 
 
@@ -100,7 +100,7 @@ def report(name: str, results: list[tuple[str, str, bool]]) -> None:
 
 def calibration() -> court.Calibration:
     """Least squares on the hand-located line landmarks; the posts' distance to the court is unknown."""
-    points = json.loads(COURT.read_text())["points"]
+    points = json.loads(COURT.read_text(encoding="utf-8"))["points"]
     return court.fit({name: tuple(p) for name, p in points.items() if not name.startswith("post")}, ransac=False)
 
 

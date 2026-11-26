@@ -68,16 +68,16 @@ def drawn(match: Path) -> Path:
 
 def score(match: Path) -> dict:
     data = page_data(match / "review")
-    text = drawn(match).read_text()
+    text = drawn(match).read_text(encoding="utf-8")
     samples = np.array(json.loads(text[text.index("{") : text.rindex("}") + 1])["samples"], dtype=float).reshape(-1, 3)
     fps = data["fps"]
-    width, height = web.decode.size(Path(json.loads((match / "source.json").read_text())["video"]))
+    width, height = web.decode.size(Path(json.loads((match / "source.json").read_text(encoding="utf-8"))["video"]))
     boxes = framing.read_boxes(match / "players.csv", (width, height), fps)
     views = np.array(framing.views(boxes, data["rallies"], [c for c in data["contacts"] if c["type"] not in web.NO_PLAYER], samples))
     # The people on the court, by time.
     on: dict[float, list] = {}
     step = max(1, round(framing.STEP_S * fps))
-    with open(match / "players.csv") as f:
+    with open(match / "players.csv", encoding="utf-8") as f:
         for row in csv.DictReader(f):
             frame = int(row["frame"])
             if frame % step or row["court_x"] == "" or abs(float(row["court_x"])) > COURT[0] or abs(float(row["court_y"])) > COURT[1]:

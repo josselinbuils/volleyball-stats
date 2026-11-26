@@ -39,7 +39,7 @@ def main() -> None:
     parser.add_argument("--again", action="store_true", help="make every line again, not only the missing ones")
     args = parser.parse_args()
     page = args.match / "review" / "data.js"
-    text = (page if page.exists() else args.match / "site" / "data.js").read_text()
+    text = (page if page.exists() else args.match / "site" / "data.js").read_text(encoding="utf-8")
     data = json.loads(text[text.index("{") : text.rindex("}") + 1])
     spoken = read_spoken(args.match)
     lines = script(data)
@@ -48,7 +48,7 @@ def main() -> None:
     folder = args.match / "voice"
     folder.mkdir(exist_ok=True)
     path = folder / "durations.json"
-    durations = json.loads(path.read_text()) if path.exists() and not args.again else {}
+    durations = json.loads(path.read_text(encoding="utf-8")) if path.exists() and not args.again else {}
     new = sorted(t for t in wanted if clip_name(t) not in durations or not (folder / clip_name(t)).exists())
     print(f"{len(wanted)} texts, {len(new)} to make")
     if new:
@@ -62,8 +62,8 @@ def main() -> None:
             durations[clip] = round(len(audio) / RATE, 2)
             if k % 25 == 0:
                 print(f"  {k + 1}/{len(new)}", flush=True)
-                path.write_text(json.dumps(durations))
-        path.write_text(json.dumps(durations))
+                path.write_text(json.dumps(durations), encoding="utf-8")
+        path.write_text(json.dumps(durations), encoding="utf-8")
     print(f"{sum(durations[clip_name(t)] for t in wanted):.0f} s of audio in {folder}")
 
 

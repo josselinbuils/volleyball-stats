@@ -48,8 +48,8 @@ def sheet(video: Path, rows: np.ndarray, frames: range, per_row: int, out: Path)
 
 
 def main(match: Path, out: Path, count: int = 20) -> None:
-    video = Path(json.loads((match / "source.json").read_text())["video"])
-    attacks = [(int(r["frame"]), int(float(r["track"]))) for r in csv.DictReader(open(match / "actions.csv")) if r["type"] == "attack" and r["track"]]
+    video = Path(json.loads((match / "source.json").read_text(encoding="utf-8"))["video"])
+    attacks = [(int(r["frame"]), int(float(r["track"]))) for r in csv.DictReader(open(match / "actions.csv", encoding="utf-8")) if r["type"] == "attack" and r["track"]]
     picked = sorted(random.Random(0).sample(attacks, count))
     tracks = jumps.read_tracks(match / "players.csv", {t for _, t in picked})
     out.mkdir(parents=True, exist_ok=True)
