@@ -22,6 +22,13 @@
   (500 frames after 50 to warm up, 30 s at most, its own counted bar, kept in `outputs/speed.json`); "Laissez
   l'ordinateur branché et ouvert" on a laptop (`awake.laptop`), and past 24 s per second of video, that it is too
   slow and what would help. Diagnostics says the same for an hour of match.
+  A stopped analysis (the Stop button, a sleep, a crash, the app closed) carries on where it was: the tracking pass
+  keeps a part every 9600 frames (`resume.py`, `tracking_parts/`: the ball positions, the player rows, BoT-SORT's
+  state and its next id, pickled; this machine's own, left out of backups and the hosted pages), started again it reads
+  the parts kept under the same key (video, court, models, the tracking's code) and decodes from the next frame, the
+  ball's 16 frames before it read again so its windows batch as before: its tracks byte for byte those of a run never
+  stopped. The card says "Arrêté", its time for the rest and "Reprendre"; "Réessayer" only for a failure with nothing
+  kept. A user's stop leaves the tasks' pill (no failure to tell).
   The bars show both shares, and slide when a job tells none. Every page of the app (the list, the review, the page at
   `/page`) shows the tasks running elsewhere in a pill in its corner (`Tasks.tsx`, `/app/tasks`: the review's apply and
   the jobs running or ended within 2 min), its panel each one's bar and a link to its screen, the share leading the

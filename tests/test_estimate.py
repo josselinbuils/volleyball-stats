@@ -35,3 +35,11 @@ def test_counts_only_the_stages_that_will_run(tmp_path, monkeypatch):
 def test_too_slow_a_machine_is_warned(tmp_path):
     (tmp_path / estimate.SPEED).write_text(json.dumps({"frame_s": 20 * estimate.REFERENCE_FRAME_S}))
     assert doctor.speed(tmp_path)["status"] == "warn"
+
+
+def test_a_stopped_run_counts_only_the_tracking_left(tmp_path, monkeypatch):
+    (tmp_path / estimate.SPEED).write_text(json.dumps({"frame_s": estimate.REFERENCE_FRAME_S}))
+    monkeypatch.setattr(playing, "wanted", lambda video, out: True)
+    monkeypatch.setattr(gesture, "wanted", lambda video, out: True)
+    whole = estimate.seconds(tmp_path, tmp_path / "v.mp4", tmp_path, 100.0)
+    assert abs(whole - estimate.seconds(tmp_path, tmp_path / "v.mp4", tmp_path, 100.0, 0.25) - 25 * estimate.REFERENCE["tracking"]) < 1e-9

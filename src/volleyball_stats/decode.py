@@ -118,9 +118,10 @@ def fps(video: Path) -> float:
 def timestamps(video: Path) -> np.ndarray:
     """Each frame's time in seconds from the video's start, as ffmpeg's -ss counts it: a camera's are
     slightly irregular, so a frame's index alone does not say where it is. Kept on disk: listing them
-    reads the whole file."""
+    reads the whole file. Frames before the start (a cut without re-encoding keeps the lead-in its first frame needs) are
+    no frames: ffmpeg drops them."""
     stat = video.stat()
-    kept = Path(tempfile.gettempdir()) / f"volleyball_stats_times_{stat.st_size}_{stat.st_mtime_ns}.npy"
+    kept = Path(tempfile.gettempdir()) / f"volleyball_stats_frame_times_{stat.st_size}_{stat.st_mtime_ns}.npy"
     if kept.exists():
         return np.load(kept)
 
@@ -132,6 +133,7 @@ def timestamps(video: Path) -> np.ndarray:
     start = float(probe(video, "-show_entries", "format=start_time", "-of", "csv=p=0"))
     ticks = np.sort(np.array(probe(video, "-select_streams", "v:0", "-show_entries", "packet=pts", "-of", "csv=p=0").replace(",", "").split(), dtype=np.int64))
     found = ticks * float(base) - start
+    found = found[found > -1e-6]
     # Under another name first: several readers may list them at once.
     partial = kept.with_name(f"{kept.stem}_{os.getpid()}_{threading.get_ident()}.npy")
     np.save(partial, found)
@@ -189,9 +191,10 @@ def spans(sorted_: list[int]) -> list[tuple[int, int]]:
     return out
 
 
-def frames(video: Path, width: int = WIDTH, count: int | None = None) -> Iterator[np.ndarray]:
-    """Every BGR frame of the video in order (its first `count`), `scaled` to `width` pixels wide."""
-    return piped(video, *scaled(*size(video), width), count=count)
+def frames(video: Path, width: int = WIDTH, count: int | None = None, first: int = 0) -> Iterator[np.ndarray]:
+    """Every BGR frame of the video in order from index `first` (`count` of them), `scaled` to `width` pixels wide: those
+    from `first` are the pixels of a decoding from the start."""
+    return piped(video, *scaled(*size(video), width), first=first, count=count)
 
 
 def frames_at(video: Path, wanted: Iterable[int]) -> Iterator[tuple[int, np.ndarray]]:

@@ -34,6 +34,10 @@ export function PreparingCard({ item, onChange }: { item: Preparing; onChange: (
   const [version, setVersion] = useState(0);
   const names = teamNames(item);
   const job = item.job;
+  // Stopped by the user or killed (a sleep, a crash): no failure to tell.
+  const stopped = ['stopped', 'interrupted'].includes(job?.error ?? '');
+  // An analysis stopped, or with tracking kept, carries on: "Reprendre"; one that failed with nothing kept, "Réessayer".
+  const resumes = item.resume != null && (item.resume > 0 || item.state === 'stalled' || stopped);
   // The action running, its button showing a loader.
   const [doing, run] = useRunning();
   const act = (path: string, body: object = {}) =>
@@ -56,7 +60,7 @@ export function PreparingCard({ item, onChange }: { item: Preparing; onChange: (
     court: item.searching ? t('app.state.searching') : item.placing ? t('app.state.placing') : item.fitFailed ? t('app.state.fitFailed') : t('app.state.court'),
     check: t('app.state.check', { context: item.seconds == null ? 'unknown' : undefined }),
     running: [t('app.state.running'), job?.stage && t(`review.stage.${job.stage}`, { defaultValue: job.stage })].filter(Boolean).join(' · '),
-    failed: t(job?.error === 'stopped' ? 'app.state.stopped' : 'app.state.failed', { step: t(`app.step.${job?.failed}`, { defaultValue: job?.failed }) }),
+    failed: t(stopped ? 'app.state.stopped' : 'app.state.failed', { step: t(`app.step.${job?.failed}`, { defaultValue: job?.failed }) }),
     elsewhere: t('app.state.elsewhere'),
     stalled: t('app.state.stalled'),
   }[item.state];
@@ -83,9 +87,9 @@ export function PreparingCard({ item, onChange }: { item: Preparing; onChange: (
           {status}
         </JobProgress>
       ) : (
-        <p className={item.state === 'failed' || item.fitFailed ? 'text-destructive' : undefined}>{status}</p>
+        <p className={(item.state === 'failed' && !stopped) || item.fitFailed ? 'text-destructive' : undefined}>{status}</p>
       )}
-      {item.state === 'failed' && job?.error && !['stopped', 'interrupted'].includes(job.error) && <p className="text-xs [overflow-wrap:anywhere] text-muted-foreground">{job.error}</p>}
+      {item.state === 'failed' && job?.error && !stopped && <p className="text-xs [overflow-wrap:anywhere] text-muted-foreground">{job.error}</p>}
       {item.state === 'check' && (
         <div className="grid gap-3 sm:grid-cols-2">
           {item.start && names && (
@@ -118,7 +122,7 @@ export function PreparingCard({ item, onChange }: { item: Preparing; onChange: (
           )}
         </div>
       )}
-      {item.state === 'check' && item.seconds != null && (
+      {(item.state === 'check' || item.resume != null) && item.seconds != null && (
         <div className="grid gap-1 text-sm">
           <p>{t('app.estimate', { time: duration(roughly(item.seconds)), end: endOf(item.seconds, i18n.language, f) })}</p>
           {item.slow && <p>{t('app.estimateSlow')}</p>}
@@ -140,8 +144,8 @@ export function PreparingCard({ item, onChange }: { item: Preparing; onChange: (
         )}
         {(item.state === 'check' || item.state === 'stalled' || (item.state === 'failed' && job?.failed === 'pipeline')) && (
           <Button busy={doing === 'run'} disabled={!!doing} onClick={() => void act('run', { anyway: !!busy })}>
-            {item.state === 'check' ? <Play aria-hidden /> : <RotateCcw aria-hidden />}
-            {busy ? t('app.runAnyway') : item.state === 'check' ? t('app.run') : t('app.retry')}
+            {item.state === 'check' || resumes ? <Play aria-hidden /> : <RotateCcw aria-hidden />}
+            {busy ? t('app.runAnyway') : item.state === 'check' ? t('app.run') : resumes ? t('app.resume') : t('app.retry')}
           </Button>
         )}
         {item.state === 'failed' && job?.failed === 'court' && (
@@ -174,7 +178,7 @@ export function PreparingCard({ item, onChange }: { item: Preparing; onChange: (
           <DialogContent>
             <DialogHeader>
               <DialogTitle>{t(confirm === 'stop' ? 'app.stopTitle' : 'app.deleteTitle')}</DialogTitle>
-              <DialogDescription>{t(confirm === 'stop' ? 'app.stopText' : 'app.deleteText')}</DialogDescription>
+              <DialogDescription>{confirm === 'stop' ? t('app.stopText', { context: item.state === 'running' ? 'resume' : undefined }) : t('app.deleteText')}</DialogDescription>
             </DialogHeader>
             <DialogFooter>
               <Button variant="outline" onClick={() => setConfirm(null)}>

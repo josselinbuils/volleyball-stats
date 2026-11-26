@@ -119,6 +119,23 @@ class TestStages:
         assert set(json.loads((tmp_path / "took.json").read_text())) == {"match:a", "match:b", "shared"}
 
 
+    def test_a_stage_started_again_counts_from_where_it_was_its_pace_and_duration_its_own(self, tmp_path, monkeypatch):
+        clock = [1000.0]
+        monkeypatch.setattr(jobs.time, "time", lambda: clock[0])
+        stages = jobs.Stages(tmp_path / "took.json", ["tracking", "page"], {"tracking": 2.0, "page": 1.0}, told=False, scale=100.0)
+        stages.start("tracking")
+        stages.resumed(0.5)
+        # Half the tracking kept: the bar from there, 100 s of it left as expected.
+        assert stages.share() == pytest.approx(100.0 / 300.0) and stages.left() == 100.0 + 100.0
+        clock[0] += 30.0
+        stages.share_of_stage(0.6)
+        # A tenth in 30 s: 120 s more, not the pace of half in 30 s.
+        assert stages.left() == pytest.approx(120.0 + 100.0)
+        clock[0] += 120.0
+        stages.start("page")
+        # 150 s for half the tracking: 300 s for a whole one, 3 s per second of video.
+        assert json.loads((tmp_path / "took.json").read_text())["tracking"] == pytest.approx(3.0)
+
     def test_a_run_reusing_an_earlier_ones_work_keeps_no_durations(self, tmp_path):
         (tmp_path / "took.json").write_text(json.dumps({"identity": 0.4}))
         stages = jobs.Stages(tmp_path / "took.json", ["identity"], {}, told=False, keep=False)

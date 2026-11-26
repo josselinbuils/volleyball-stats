@@ -80,7 +80,10 @@ laissez l'ordinateur allumé et branché"), and the projected end time.
 
 ## 3. Resume a stopped analysis
 
-- [ ] Done
+- [x] Done (26 Nov): `resume.py`, a part every 9600 frames (3 min 12 s at 50 fps) with BoT-SORT's state; checked on a
+  100 s cut of the Eysines match (parts of 1600 frames), killed twice then resumed: `ball.csv` and `players.csv` byte
+  for byte; again through the app (stopped, killed, "Reprendre"). A whole match's run killed at random, not done
+  (4 h a run): the later stages read only these tracks.
 
 A stopped analysis (sleep, restart, crash, update, the window closed) starts again where it was, not from zero.
 
@@ -308,3 +311,10 @@ One line per session: date, what was done, what is next.
   `outputs/speed.json`), the card then says the time and the end, "branché et ouvert" on a laptop, too slow past
   24 s a second; Diagnostics gives an hour of match. Checked with no `pipeline_timings.json` on a 2-min clip: 287 s
   announced, 285 s run; the Eysines match 4.28 h announced, 4.21 h run. Waits on the Mac's import. Next: step 3.
+- 26 Nov: step 3 done (`resume.py`): the tracking pass keeps a part every 9600 frames (ball positions, player rows,
+  BoT-SORT's state and next id), a run started again carries on after the last one, the ball's 16 frames before it read
+  again: tracks byte for byte those of a run never stopped (a clip killed twice, then through the app). The card says
+  "Arrêté", the time for the rest, "Reprendre"; a user's stop is no failure in the tasks' pill. Found on the way:
+  a video cut without re-encoding (frames before its start) had every frame read by index come that many frames early
+  (`decode.timestamps`, fixed; the owner's matches have none, the `side_setend` clip 111: its teams benchmark back to the
+  README's, side map 3/8 → 8/8, change of ends 0 → 1 found of 1, colour vs side 0.634 → 0.882). Next: step 4.

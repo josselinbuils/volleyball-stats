@@ -26,7 +26,7 @@ import webbrowser
 from pathlib import Path
 from urllib.parse import parse_qs
 
-from volleyball_stats import awake, backup, club_settings, doctor, estimate, feedback, files, git_check, jobs, presence, server, shortcut, sync
+from volleyball_stats import awake, backup, club_settings, doctor, estimate, feedback, files, git_check, jobs, presence, resume, server, shortcut, sync
 
 DATA = Path("data/matches")
 OUTPUTS = Path("outputs")
@@ -477,15 +477,15 @@ def video_of(name: str) -> Path:
 ESTIMATES: dict[tuple, dict] = {}
 
 
-def analysis_time(name: str) -> dict:
-    """The seconds the analysis of `name` would take here (`estimate.seconds`, None when unknown) and whether that is
-    too `slow`, kept while nothing it reads changes."""
+def analysis_time(name: str, tracked: float = 0.0) -> dict:
+    """The seconds the analysis of `name` would take here (`estimate.seconds`, None when unknown), the `tracked` share of
+    its tracking kept by a run stopped, and whether that is too `slow`, kept while nothing it reads changes."""
     video, out = video_of(name), MATCHES / name
     stamp = lambda p: p.stat().st_mtime_ns if p.exists() else None  # noqa: E731
-    key = (str(video), stamp(video), stamp(OUTPUTS / estimate.SPEED), stamp(OUTPUTS / estimate.TIMINGS))
+    key = (str(video), stamp(video), stamp(OUTPUTS / estimate.SPEED), stamp(OUTPUTS / estimate.TIMINGS), tracked)
     if key not in ESTIMATES:
         duration = probed([video])[0].duration if video.exists() else 0.0
-        seconds = estimate.seconds(OUTPUTS, video, out, duration) if duration else None
+        seconds = estimate.seconds(OUTPUTS, video, out, duration, tracked) if duration else None
         ESTIMATES[key] = {"seconds": seconds, "slow": seconds is not None and seconds > estimate.SLOW * duration}
     return ESTIMATES[key]
 
@@ -494,7 +494,8 @@ def preparing(listed: list[dict]) -> list[dict]:
     """The matches not ready for the review, with what they wait for: `importing`, `measuring` (this machine's speed),
     `court` (to map by hand, `fitFailed` when the clicks did not fit), `check` (to look at, then start: the analysis'
     `seconds` here, `slow`, `laptop` when its lid would still sleep it), `running`, `failed`, `elsewhere` (run by a command on
-    this machine) or `stalled` (a run by a command that stopped, or one on the other machine)."""
+    this machine) or `stalled` (a run by a command that stopped, or one on the other machine); a stopped analysis with the
+    share it tracked (`resume`) and the time for the rest."""
     ready = {m["path"] for m in listed if m.get("ready") or m.get("missing")}
     by_match = {j["id"]: j for j in jobs.state(OUTPUTS) if j["kind"] in ("import", "court", "pipeline")}
     names = {p.parent.name for p in MATCHES.glob("*/teams.json") if not (p.parent / "report.md").exists()} | set(by_match)
@@ -521,6 +522,12 @@ def preparing(listed: list[dict]) -> list[dict]:
             item["state"] = "court"
         else:
             continue
+        if item["state"] == "stalled" or (item["state"] == "failed" and job.get("failed") == "pipeline"):
+            # Started again, it carries on where it stopped (`resume`): the time for what is left. Its tracks written, it
+            # tracks nothing again (`match.main`).
+            item["resume"] = 1.0 if all((folder / f).exists() for f in ("ball.csv", "players.csv")) else resume.done(folder)
+            if (folder / COURT).exists():
+                item.update(**analysis_time(name, item["resume"]), laptop=awake.laptop() is not False)
         found.append(item)
     return found
 
@@ -802,7 +809,8 @@ def tasks(review: dict | None = None, match: str | None = None) -> list[dict]:
         step = review["steps"][review["done"]] if review["running"] else review.get("failed")
         found.append({"id": "review", "kind": "review", "match": match, "teams": teams_of(match), "step": step, "failed": bool(review.get("failed")), **{k: review.get(k) for k in ("running", "stage", "fraction", "part", "left", "elapsed", "late", "error")}})
     for job in jobs.state(OUTPUTS):
-        if not job["running"] and now - (job.get("ended") or 0) > RECENT_S:
+        # Stopped by the user: no failure to tell, the match's card says it (and offers to resume an analysis).
+        if not job["running"] and (now - (job.get("ended") or 0) > RECENT_S or job.get("error") == "stopped"):
             continue
         item = {"id": job["id"], "kind": job["kind"], "running": job["running"], "step": job.get("step"), "fraction": job.get("progress"), "part": job.get("part"), "error": job.get("error"), "failed": bool(job.get("failed")), "auto": bool(job.get("auto")), "battery": bool(job.get("battery"))}
         if job["kind"] in MATCH_JOBS:

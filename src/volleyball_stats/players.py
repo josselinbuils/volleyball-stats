@@ -95,10 +95,8 @@ def lapjv(cost: np.ndarray, extend_cost: bool = True, cost_limit: float = np.inf
     return float(cost[rows[ok], cols[ok]].sum()), x, y
 
 
-def make_tracker(kind: str = TRACKER, conf: float = CONF, fps: float = 30.0, **overrides):
-    """An ultralytics tracker ("bytetrack" or "botsort") with its defaults, CONF as the high
-    threshold, a lost track kept BUFFER_S at `fps` and no camera motion compensation (fixed
-    camera)."""
+def with_lap() -> None:
+    """ultralytics' trackers import `lap`: ours stands in when it is missing (before a tracker is made or unpickled)."""
     import sys
     from types import SimpleNamespace
 
@@ -107,6 +105,29 @@ def make_tracker(kind: str = TRACKER, conf: float = CONF, fps: float = 30.0, **o
     except ImportError:
         # ponytail: ultralytics' trackers need `lap`, not a dependency yet; delete this once it is.
         sys.modules["lap"] = SimpleNamespace(__version__="0", lapjv=lapjv)
+
+
+def next_ids() -> int:
+    """The trackers' track ids given so far in this process (one count for them all): a tracker unpickled
+    (`resume.kept`) carries on from it with `restore_ids`."""
+    with_lap()
+    from ultralytics.trackers.basetrack import BaseTrack
+
+    return BaseTrack._count
+
+
+def restore_ids(count: int) -> None:
+    with_lap()
+    from ultralytics.trackers.basetrack import BaseTrack
+
+    BaseTrack._count = count
+
+
+def make_tracker(kind: str = TRACKER, conf: float = CONF, fps: float = 30.0, **overrides):
+    """An ultralytics tracker ("bytetrack" or "botsort") with its defaults, CONF as the high
+    threshold, a lost track kept BUFFER_S at `fps` and no camera motion compensation (fixed
+    camera)."""
+    with_lap()
     from ultralytics.trackers.track import TRACKER_MAP
     from ultralytics.utils import YAML, IterableSimpleNamespace
     from ultralytics.utils.checks import check_yaml
@@ -116,15 +137,23 @@ def make_tracker(kind: str = TRACKER, conf: float = CONF, fps: float = 30.0, **o
 
 
 def track_frames(
-    frames: Iterable[np.ndarray], calibration: Calibration, model, device: str, tracker=None, imgsz: int = IMGSZ, size: tuple[int, int] | None = None, fps: float = 30.0
+    frames: Iterable[np.ndarray],
+    calibration: Calibration,
+    model,
+    device: str,
+    tracker=None,
+    imgsz: int = IMGSZ,
+    size: tuple[int, int] | None = None,
+    fps: float = 30.0,
+    first: int = 0,
 ) -> Iterator[list[Row]]:
     """Yield, frame by frame, the rows of the on-court detections the tracker (default
     `make_tracker` for frames at `fps`) assigned to a track, boxes in the pixels of a frame of
-    `size` (width, height), by default the frames' own."""
+    `size` (width, height), by default the frames' own; the frames numbered from `first`."""
     from ultralytics.engine.results import Boxes
 
     online = tracker or make_tracker(fps=fps)
-    for index, frame in enumerate(frames):
+    for index, frame in enumerate(frames, first):
         boxes = detect(frame, model, device, imgsz, LOW)
         shape = frame.shape[:2]
         if size:

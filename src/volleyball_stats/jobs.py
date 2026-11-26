@@ -49,7 +49,7 @@ class Stages:
         except (OSError, ValueError):
             self.took = dict(took)
         self.kept = dict(self.took)
-        self.key, self.done, self.since, self.own = None, 0.0, time.time(), None
+        self.key, self.done, self.since, self.own, self.base = None, 0.0, time.time(), None, 0.0
         self.stopped = threading.Event()
         if told:
             threading.Thread(target=self.tell, daemon=True).start()
@@ -67,7 +67,9 @@ class Stages:
     def left(self) -> float:
         """Seconds left: the stage running's, from its own share's pace when it tells one, then the later stages'."""
         spent, expected = time.time() - self.since, self.expected(self.key or "")
-        here = spent * (1 - self.own) / self.own if self.own and self.own > 0.01 else max(0.0, expected - spent) if self.own is None else expected
+        # The pace of the share counted since the stage started (`resumed`: not what an earlier run did).
+        counted = (self.own or 0.0) - self.base
+        here = spent * (1 - self.own) / counted if self.own is not None and counted > 0.01 else max(0.0, expected * (1 - self.base) - spent) if self.own is None else expected * (1 - self.base)
         later = self.plan[self.plan.index(self.key) + 1 :] if self.key in self.plan else []
         return here + sum(self.expected(k) for k in later)
 
@@ -83,6 +85,12 @@ class Stages:
     def share_of_stage(self, share: float) -> None:
         """The stage running tells its own share done (0-1)."""
         self.own = min(1.0, max(0.0, share))
+
+    def resumed(self, share: float) -> None:
+        """The stage running starts again from a share an earlier run did (`resume`): its bar from there, its time left
+        and the duration kept from this run's own pace."""
+        self.base = min(0.99, max(0.0, share))
+        self.share_of_stage(self.base)
 
     def counter(self, total: float) -> Callable[[float], None]:
         """A tick for the stage running to count its work with: each call adds that much done of `total`."""
@@ -101,10 +109,10 @@ class Stages:
             # The share counts it as expected, never going back; the next run expects what it took (the weights of
             # this one stay as they were, else the share would jump).
             self.done += self.expected(self.key)
-            self.kept[self.key] = (now - self.since) / self.scale
+            self.kept[self.key] = (now - self.since) / self.scale / (1 - self.base)
             if self.path and self.keep:
                 files.write_text(self.path, json.dumps(self.kept, indent=1) + "\n")
-        self.key, self.since, self.own = key, now, None
+        self.key, self.since, self.own, self.base = key, now, None, 0.0
         if key is None:
             self.stopped.set()
         if key is None or not self.told:

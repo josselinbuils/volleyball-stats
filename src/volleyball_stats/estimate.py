@@ -59,10 +59,11 @@ def planned(video: Path, out: Path) -> list[str]:
     return [s for s in REFERENCE if (s != "play" or play) and (s != "gesture" or gestures)]
 
 
-def seconds(outputs: Path, video: Path, out: Path, duration: float) -> float | None:
-    """The analysis of `video` (`duration` seconds long) here, in seconds; None before any run or measure."""
+def seconds(outputs: Path, video: Path, out: Path, duration: float, tracked: float = 0.0) -> float | None:
+    """The analysis of `video` (`duration` seconds long) here, in seconds, the `tracked` share of its tracking kept by a
+    run stopped (`resume.done`); None before any run or measure."""
     found = stages(outputs)
-    return None if found is None else duration * sum(found.get(s, 0.0) for s in planned(video, out))
+    return None if found is None else duration * sum(found.get(s, 0.0) * (1 - tracked if s == "tracking" else 1) for s in planned(video, out))
 
 
 def measure(video: Path, outputs: Path) -> dict:

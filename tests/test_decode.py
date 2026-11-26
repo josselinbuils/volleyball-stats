@@ -126,6 +126,16 @@ class TestFrames:
         expected = self.expected(irregular)
         assert np.array_equal(frame_at(irregular, 30), expected[30])
 
+    def test_from_a_frame_of_a_video_cut_without_re_encoding_gives_that_of_a_decoding_from_the_start(self, tmp_path):
+        source, cut = tmp_path / "source.mp4", tmp_path / "cut.mp4"
+        subprocess.run(["ffmpeg", "-v", "error", "-i", str(self.video(tmp_path, 60)), "-c:v", "libx264", "-g", "25", "-crf", "0", str(source)], check=True)
+        # Cut between keyframes, the frames before its start kept for the first one to decode.
+        subprocess.run(["ffmpeg", "-v", "error", "-ss", "1.3", "-i", str(source), "-c", "copy", str(cut)], check=True)
+        assert decode.probe(cut, "-select_streams", "v:0", "-show_entries", "packet=pts", "-of", "csv=p=0").startswith("-")
+        whole = list(frames(cut))
+        assert len(decode.timestamps(cut)) == len(whole)
+        assert all(np.array_equal(a, b) for a, b in zip(frames(cut, first=10, count=5), whole[10:15], strict=True))
+
     def test_frame_at_past_the_end_is_none(self, tmp_path):
         assert frame_at(self.video(tmp_path), 40) is None
 

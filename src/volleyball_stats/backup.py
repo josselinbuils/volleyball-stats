@@ -35,7 +35,8 @@ ROOT = "/root/backups/volleyball-stats"
 # The caches of players.csv and ball.csv (`tables`), made again where read.
 # Per machine (`sync`): the server's version of the match this machine's copy started from.
 STATE = ".sync.json"
-SKIP = ("backup-*", "review", "site", "photo_moments", ".*.tmp", "photos_stale", STATE, *tables.CACHES)
+# "tracking_parts": a stopped tracking pass (`resume.FOLDER`, not imported: it loads torch), this machine's alone.
+SKIP = ("backup-*", "review", "site", "photo_moments", ".*.tmp", "photos_stale", "tracking_parts", STATE, *tables.CACHES)
 # What sits beside the matches in the outputs folder, copied with each match and on its own (`backup_shared`).
 # "learned": the models trained on the reviewed matches (`playing.WEIGHTS`, `gesture.WEIGHTS`, 345 MB each: a machine with no card gets them made).
 # The videos' password (`matches.PASSWORD`): either machine uploads a match with its video.

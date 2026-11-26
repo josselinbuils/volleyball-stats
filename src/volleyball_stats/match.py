@@ -22,13 +22,13 @@ import time
 from collections import Counter
 from collections.abc import Callable, Iterator
 from datetime import datetime
-from itertools import repeat, tee
+from itertools import chain, islice, repeat, tee
 from pathlib import Path
 
 import cv2
 import numpy as np
 
-from volleyball_stats import actions, analysis, attribution, ball, ball3d, ballsize, contacts, court, decode, estimate, files, gesture, identity, jerseys, jobs, jumps, players, playing, points, rallies, ranker, scoreboard, teams, timeouts
+from volleyball_stats import actions, analysis, attribution, ball, ball3d, ballsize, contacts, court, decode, estimate, files, gesture, identity, jerseys, jobs, jumps, players, playing, points, rallies, ranker, resume, scoreboard, teams, timeouts
 
 TYPES = ["serve", "pass", "set", "attack", "relance", "block", "dig", "floor", "net"]
 # Balls under the line SPARE_Y meters toward the camera (1 m past the near sideline) are spare ones,
@@ -128,29 +128,53 @@ def side_by_side(frames: Iterator, steps: list[Callable[[Iterator], Iterator]]) 
 
 
 def tracked(
-    video: Path, calibration: court.Calibration | None, with_ball: bool, with_players: bool, fps: float, count: int | None = None
+    video: Path, calibration: court.Calibration | None, with_ball: bool, with_players: bool, fps: float, count: int | None = None, first: int = 0, tracker=None
 ) -> Iterator[tuple[ball.Position, list[players.Row]]]:
     """Per frame, the ball's position (None when not found or not tracked) and the players' rows
     (none when not tracked), from one decoding pass of the video at `fps` (its first `count` frames, else all);
-    `with_ball` or `with_players`, both side by side."""
+    `with_ball` or `with_players`, both side by side. From frame `first` (a multiple of resume.LEAD), the players
+    carrying on with `tracker` (else a new one): what a pass from the start gives there."""
     device, native = ball.default_device(), decode.size(video)
+    # The ball's windows before `first` read again, batched as from the start: each frame's ball is the best of them.
+    lead = min(first, resume.LEAD) if with_ball else 0
+    begin = first - lead
     balls = lambda frames: (p for _, p in ball.track_frames(frames, ball.load_model(device), device, size=native))  # noqa: E731
-    found = lambda frames: players.track_frames(frames, calibration, players.load_model(), device, size=native, fps=fps)  # noqa: E731
+    people = lambda frames: players.track_frames(frames, calibration, players.load_model(), device, tracker, size=native, fps=fps, first=first)  # noqa: E731
+    found = lambda frames: chain(repeat([], lead), people(islice(frames, lead, None)))  # noqa: E731
+    source = decode.frames(video, count=count - begin if count else None, first=begin)
     if with_ball and with_players and device == "cuda":
         # The players first, in this thread: they yield frame by frame, the ball in batches.
-        return ((b, p) for p, b in side_by_side(decode.frames(video, count=count), [found, balls]))
+        return islice(((b, p) for p, b in side_by_side(source, [found, balls])), lead, None)
     # Metal (MPS) aborts when two threads run models at once: one thread, both models in turn.
-    branches = iter(tee(decode.frames(video, count=count), with_ball + with_players))
-    return zip(balls(next(branches)) if with_ball else repeat(None), found(next(branches)) if with_players else repeat([]))
+    branches = iter(tee(source, with_ball + with_players))
+    return islice(zip(balls(next(branches)) if with_ball else repeat(None), found(next(branches)) if with_players else repeat([])), lead, None)
 
 
-def track(video: Path, calibration: court.Calibration | None, fps: float, ball_path: Path | None, players_path: Path | None, frame_count: int = 0) -> None:
+def track(
+    video: Path, calibration: court.Calibration | None, fps: float, ball_path: Path | None, players_path: Path | None, frame_count: int = 0, court_path: Path | None = None
+) -> None:
     """The ball track into `ball_path` and the players' into `players_path`, either None to skip it; the share of the
-    `frame_count` frames done on PROGRESS lines, for the app."""
-    positions, rows = [], []
-    for index, (position, frame_rows) in enumerate(tracked(video, calibration, ball_path is not None, players_path is not None, fps)):
+    `frame_count` frames done on PROGRESS lines, for the app. Kept as it goes (`resume`): a pass stopped carries on where
+    it was."""
+    folder = (ball_path or players_path).parent / resume.FOLDER
+    key = resume.stamp(video, court_path, ball_path is not None, players_path is not None, fps, ball.default_device())
+    first, positions, rows, tracker = resume.kept(folder, key)
+    if first:
+        print(f"Tracking from frame {first}, kept by a run stopped", flush=True)
+        if stages:
+            stages.resumed(first / frame_count if frame_count else 0.0)
+    else:
+        resume.start(folder, key, frame_count)
+    if players_path and tracker is None:
+        tracker = players.make_tracker(fps=fps)
+    # Since the last part kept.
+    since_positions, since_rows = len(positions), len(rows)
+    for index, (position, frame_rows) in enumerate(tracked(video, calibration, ball_path is not None, players_path is not None, fps, first=first, tracker=tracker), first):
         positions.append([index, int(position is not None), *(position or ("", ""))])
         rows += frame_rows
+        if (index + 1) % resume.CHUNK == 0:
+            resume.save(folder, index + 1, positions[since_positions:], rows[since_rows:], tracker)
+            since_positions, since_rows = len(positions), len(rows)
         if frame_count and index % PROGRESS_EVERY == 0:
             if stages:
                 stages.share_of_stage(index / frame_count)
@@ -160,6 +184,7 @@ def track(video: Path, calibration: court.Calibration | None, fps: float, ball_p
         write_csv(ball_path, ["frame", "visible", "x", "y"], positions)
     if players_path:
         players.write_csv(players.finish(rows, fps), players_path)
+    resume.clear(folder.parent)
 
 
 def rally_windows(
@@ -488,7 +513,7 @@ def main() -> None:
             parser.error(" ".join(reasons) + " Using the most CPU: " + ", ".join(busiest()) + ". --anyway to track all the same.")
         stage("tracking")
         start = time.perf_counter()
-        track(args.video, calibration, fps, track_path if new_ball else None, players_path if new_players else None, frame_count)
+        track(args.video, calibration, fps, track_path if new_ball else None, players_path if new_players else None, frame_count, args.court)
         timings[" and ".join(name for name, new in (("ball", new_ball), ("players", new_players)) if new)] = time.perf_counter() - start
     if new_players:
         # New tracks: the identities, their embeddings and the attackers' poses (by track) start over.

@@ -61,6 +61,8 @@ export interface Preparing {
   seconds?: number | null;
   slow?: boolean;
   laptop?: boolean;
+  /** A stopped analysis: the share of its tracking kept, from which it starts again (0 for none); `seconds` then for the rest. */
+  resume?: number;
 }
 
 export interface AppState {

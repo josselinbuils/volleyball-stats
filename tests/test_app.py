@@ -48,6 +48,21 @@ class TestApp:
         assert found["g"]["fitFailed"] and not found["e"]["fitFailed"]
         # No video: no time; a machine that cannot tell is asked to stay open.
         assert found["b"]["seconds"] is None and not found["b"]["slow"] and found["b"]["laptop"]
+        # A stopped analysis starts again where it was: the share kept (none here), its time for the rest.
+        assert found["f"]["resume"] == 0.0 and "seconds" in found["f"] and found["c"]["resume"] == 0.0 and "resume" not in found["b"]
+
+    def test_a_stopped_analysis_tells_the_share_of_its_tracking_kept(self, place, monkeypatch):
+        from volleyball_stats import resume
+
+        monkeypatch.setattr(awake, "laptop", lambda: False)
+        folder = self.match(place, "m", app.COURT)
+        self.job(place, "m", kind="pipeline", failed="pipeline", error="stopped")
+        resume.start(folder / resume.FOLDER, "k", 4 * resume.CHUNK)
+        resume.save(folder / resume.FOLDER, resume.CHUNK, [], [], None)
+        assert app.preparing([])[0]["resume"] == 0.25
+        (folder / "ball.csv").write_text("")
+        (folder / "players.csv").write_text("")
+        assert app.preparing([])[0]["resume"] == 1.0
 
     def test_lists_the_tasks_running_or_just_ended(self, place):
         import time
@@ -60,6 +75,8 @@ class TestApp:
         assert set(found) == {"review", "m"}
         assert found["review"]["step"] == "copies" and found["review"]["teams"] == ["A", "B"] and found["review"]["running"]
         assert found["m"]["failed"] and found["m"]["match"] == "m" and not found["m"]["running"]
+        self.job(place, "s", kind="pipeline", ended=time.time(), failed="pipeline", error="stopped")
+        assert "s" not in {t["id"] for t in app.tasks(None)}
         failed = app.tasks({"running": False, "failed": "copies", "error": "boom"}, "m")[0]
         assert failed["step"] == "copies" and failed["failed"] and app.tasks(None) == [found["m"]]
 
