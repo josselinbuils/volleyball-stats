@@ -1,4 +1,13 @@
 {
+  "camera": {
+    "model": "DJI OsmoAction3",
+    "size": [
+      3840,
+      2160
+    ],
+    "fps": 50
+  },
+  "mode": "Standard field of view, 4K 50 fps (docs/recording.md)",
   "model": "fisheye",
   "K": [
     [

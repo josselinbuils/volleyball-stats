@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowLeftRight, Crosshair, Play, RotateCcw, Square, Trash2 } from 'lucide-react';
+import { ArrowLeftRight, Camera, Crosshair, Play, RotateCcw, Square, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { ErrorNote } from '@/components/ErrorNote';
 import { Button } from '@/components/ui/button';
@@ -7,6 +7,7 @@ import { useRunning } from '@/hooks/useRunning';
 import { Card } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useFormat, type Format } from '@/lib/format';
+import { CalibrateDialog } from './CalibrateDialog';
 import { CourtDialog } from './CourtDialog';
 import { JobProgress, roughly, useDuration } from '@/components/JobProgress';
 import { Zoomable } from '@/components/Zoomable';
@@ -27,6 +28,7 @@ export function PreparingCard({ item, onChange }: { item: Preparing; onChange: (
   const f = useFormat();
   const duration = useDuration();
   const [placing, setPlacing] = useState(false);
+  const [calibrating, setCalibrating] = useState(false);
   const [confirm, setConfirm] = useState<'stop' | 'delete' | null>(null);
   const [busy, setBusy] = useState<Check | null>(null);
   const [error, setError] = useState<Explained | null>(null);
@@ -129,6 +131,17 @@ export function PreparingCard({ item, onChange }: { item: Preparing; onChange: (
           {item.laptop && <p>{t('app.estimateLaptop')}</p>}
         </div>
       )}
+      {item.lens && !job?.running && (
+        <div className="grid gap-1.5 text-sm">
+          <p className="m-0">{t(`app.lens.${item.lens}`)}</p>
+          {item.lens === 'none' && (
+            <Button size="sm" variant="outline" className="w-fit" onClick={() => setCalibrating(true)}>
+              <Camera aria-hidden />
+              {t('app.lens.open')}
+            </Button>
+          )}
+        </div>
+      )}
       {busy && (
         <p role="alert" className="text-sm">
           {t(busy.nice ? 'app.busyNice' : 'app.busy', { load: busy.load, cores: busy.cores })}
@@ -161,6 +174,7 @@ export function PreparingCard({ item, onChange }: { item: Preparing; onChange: (
           </Button>
         )}
       </div>
+      {calibrating && <CalibrateDialog onClose={() => (setCalibrating(false), void onChange())} />}
       {placing && (
         <CourtDialog
           match={item.name}

@@ -33,8 +33,9 @@ OUTPUTS = Path("outputs")
 MATCHES = OUTPUTS / "matches"
 COURTS = OUTPUTS / "courts"
 COURT, BACKGROUND = "court.json", "background.png"
-# The camera's lens (lens.py), when calibrated: a court clicked in the app is fitted with it.
-LENS = "lens.json"
+# The camera's calibration (lens.py): its job, its board's picture.
+LENS = "lens"
+BOARD: list[bytes] = []
 IMAGES = {"start": ("start.jpg", "image/jpeg"), "court": ("court.jpg", "image/jpeg"), "background": (BACKGROUND, "image/png")}
 # Where a camera's card or a video folder may be.
 MOUNTS = {"mac": ["/Volumes"], "linux": ["/media/{user}", "/run/media/{user}"]}
@@ -522,6 +523,8 @@ def preparing(listed: list[dict]) -> list[dict]:
             item["state"] = "court"
         else:
             continue
+        if item["state"] in ("court", "check"):
+            item["lens"] = lens_need(name)
         if item["state"] == "stalled" or (item["state"] == "failed" and job.get("failed") == "pipeline"):
             # Started again, it carries on where it stopped (`resume`): the time for what is left. Its tracks written, it
             # tracks nothing again (`match.main`).
@@ -530,6 +533,55 @@ def preparing(listed: list[dict]) -> list[dict]:
                 item.update(**analysis_time(name, item["resume"]), laptop=awake.laptop() is not False)
         found.append(item)
     return found
+
+
+def lens_of(name: str) -> Path | None:
+    """The lens of the camera that filmed `name` (lens.for_match), None for one unknown here."""
+    from volleyball_stats import lens
+
+    return lens.for_match(OUTPUTS, MATCHES / name)
+
+
+def lens_need(name: str) -> str | None:
+    """What `name`'s court lacks of its camera's lens: "none" when the camera has none here (its court's positions less
+    precise), "refit" when its court was placed without the lens calibrated since; None when it lacks nothing."""
+    court = files.read_json(MATCHES / name / COURT)
+    if court and court.get("lens"):
+        return None
+    if not lens_of(name):
+        return "none"
+    return "refit" if court else None
+
+
+def lens_state() -> dict:
+    """The camera's calibration: its job (with how it went, `lens.RESULT`, once ended) and the lenses known here, each
+    camera's name, frame size and rate, and whether it was calibrated here (`own`)."""
+    from volleyball_stats import lens
+
+    job = next((j for j in jobs.state(OUTPUTS) if j["id"] == LENS), None)
+    if job and not job["running"]:
+        lines = [line for line in jobs.tail(jobs.record_of(OUTPUTS, LENS).with_suffix(".log")).splitlines() if line.startswith(lens.RESULT)]
+        job["result"] = json.loads(lines[-1].removeprefix(lens.RESULT)) if lines else None
+    known = [{**found["camera"], "own": path.parent == OUTPUTS / lens.OWN} for path, found in lens.lenses(OUTPUTS)]
+    return {"job": job, "lenses": [k for n, k in enumerate(known) if not any(lens.fits({"camera": o}, k) for o in known[:n])]}
+
+
+def calibrate_lens(source: str | list[str], recording: int) -> None:
+    """The camera's calibration started on the recording `recording` (from 1) of a source (`paths_of`), filmed of the
+    board: its first chapter, a minute being one."""
+    chapters = chapters_of(source, recording)
+    jobs.start(OUTPUTS, LENS, LENS, [(LENS, ["volleyball_stats.lens", "calibrate", str(chapters[0].path), "--outputs", str(OUTPUTS)])])
+
+
+def board() -> bytes:
+    """The board to print or show full screen, as a PNG."""
+    if not BOARD:
+        import cv2
+
+        from volleyball_stats import lens
+
+        BOARD.append(cv2.imencode(".png", lens.pattern())[1].tobytes())
+    return BOARD[0]
 
 
 def commands_running() -> str:
@@ -648,8 +700,9 @@ def fit_court(name: str, clicks: dict, court_name: str) -> None:
     command = ["volleyball_stats.court", "fit", str(folder / "court_clicks.json"), str(video_of(name)), "--court", slug, "--courts", str(COURTS), "--out", str(folder / COURT)]
     if (folder / BACKGROUND).exists():
         command += ["--background", str(folder / BACKGROUND)]
-    if (OUTPUTS / LENS).exists():
-        command += ["--lens", str(OUTPUTS / LENS)]
+    found = lens_of(name)
+    if found:
+        command += ["--lens", str(found)]
     if jobs.is_running(OUTPUTS, name):
         raise jobs.Running(name)
     (folder / COURT).unlink(missing_ok=True)
@@ -855,6 +908,10 @@ def handle(
                 return reply(doctor.checks(DATA.parent))
             if route == "log":
                 return reply({"text": jobs.tail(LOG)})
+            if route == "lens":
+                return reply(lens_state())
+            if route == "board":
+                return board(), "image/png", 200
             if route == "learning":
                 return reply(learning())
             if route == "server":
@@ -917,6 +974,9 @@ def handle(
         if route == "court/auto":
             jobs.start(OUTPUTS, name, "court", [court_auto(name)])
             return reply({})
+        if route == "lens/calibrate":
+            calibrate_lens(body["source"], int(body.get("recording") or 1))
+            return reply(lens_state())
         if route == "court/fit":
             fit_court(name, body["clicks"], str(body["court"]))
             return reply({})

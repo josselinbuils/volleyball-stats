@@ -94,11 +94,19 @@ Standard straightens most of it in the camera but still moves the 4K frame's cor
 and its side edges by 41 px. On the first match the court sat in the frame's straight middle band:
 the lens moved court positions by 5 cm at most (13 cm in the free zone).
 
-1. Print the [board](checkerboard.png) on A4 landscape, fit to page.
-2. Keep it flat: tape it on a wall or door and move the camera, or show it full screen on a TV.
-3. Film it for a minute at about 1 m, from several angles. Watching the camera screen, place the
-   whole board in each corner, at the middle of each edge and in the centre, 2 s each.
-4. Run `uv run python -m volleyball_stats.lens calibrate VIDEO`. It writes `outputs/lens.json`: a court
-   mapped in the app is fitted with it (on videos of its frame size), and `court fit --lens`
-   takes it. The Osmo Action 3's, in Standard at 4K, is
-   [`lens_osmo_action3_standard_4k.json`](lens_osmo_action3_standard_4k.json).
+The Osmo Action 3's, in Standard at 4K 50 fps, comes with the app
+([`lenses/`](../src/volleyball_stats/lenses/)): its matches need none. The import reads the camera's model, frame size and
+rate from the card's own files (`camera.json` in the match's folder); a camera without a lens here is told on the
+match's card, with the court's positions less precise, and "Calibrer la caméra" (also in Diagnostic):
+
+1. Print the board it shows on A4 landscape, fit to page, or show it full screen on a tablet or a TV.
+2. Keep it flat: tape it on cardboard, a wall or a door and move the camera.
+3. Film it for a minute at about 1 m with the match settings, from several angles. Watching the camera screen,
+   place the whole board in each corner, at the middle of each edge and in the centre, 2 s each.
+4. Pick that video in the dialog. The calibration (about 5 min for a minute of 4K on the PC, its own bar) keeps the
+   lens in `outputs/lenses/` when the board covered 60% of the frame and its corners fit within 1 px, else says what
+   to film again. A court placed in the app on that camera's videos is fitted with it; one placed before asks to be
+   placed again.
+
+`uv run python -m volleyball_stats.lens calibrate VIDEO --out FILE` does it without the app, for `court fit --lens`.
+The field of view is in none of the tags read: a profile is for the mode this guide asks (Standard).

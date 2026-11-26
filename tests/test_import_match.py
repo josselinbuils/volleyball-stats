@@ -4,7 +4,7 @@ import sys
 
 import pytest
 
-from volleyball_stats import import_match
+from volleyball_stats import import_match, lens
 from volleyball_stats.import_match import Chapter, concat_list, probe, recordings, videos
 
 
@@ -84,6 +84,17 @@ class TestImport:
 
         self.run(monkeypatch, tmp_path, str(card), "--teams", "A,B", "--recording", "2")
         assert probe(tmp_path / "data" / "2026-11-02-a-vs-b" / "2026-11-02-a-vs-b.mp4").frames == 50
+
+    def test_keeps_the_camera_its_card_names(self, tmp_path, monkeypatch):
+        card = self.card(tmp_path)
+        first = sorted((card / "DCIM" / "DJI_001").glob("DJI_*.MP4"))[0]
+        tags = ["-movflags", "use_metadata_tags", "-metadata", "com.apple.quicktime.make=Apple", "-metadata", "com.apple.quicktime.model=iPhone 15"]
+        subprocess.run(["ffmpeg", "-v", "error", "-i", str(first), "-c", "copy", *tags, "-y", str(tmp_path / "tagged.mp4")], check=True)
+        (tmp_path / "tagged.mp4").replace(first)
+        self.run(monkeypatch, tmp_path, str(card), "--teams", "A,B")
+
+        filmed = json.loads((tmp_path / "outputs" / "2026-11-02-a-vs-b" / lens.CAMERA).read_text())
+        assert filmed == {"model": "Apple iPhone 15", "size": [64, 36], "fps": 25.0}
 
     def test_refuses_a_team_without_a_name(self, tmp_path, monkeypatch):
         with pytest.raises(SystemExit):

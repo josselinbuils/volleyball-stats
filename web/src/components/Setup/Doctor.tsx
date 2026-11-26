@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { CircleCheck, CircleX, LoaderCircle, RefreshCw, ScrollText, TriangleAlert } from 'lucide-react';
+import { Camera, CircleCheck, CircleX, LoaderCircle, RefreshCw, ScrollText, TriangleAlert } from 'lucide-react';
 import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
 import { ErrorNote, LogDialog } from '@/components/ErrorNote';
@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { useRunning } from '@/hooks/useRunning';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { duration, roughly } from '@/components/JobProgress';
+import { CalibrateDialog } from './CalibrateDialog';
 import type { Check } from './helpers/setup';
 
 /** A check's text: what was found, and when it is not right, what to do. */
@@ -42,6 +43,7 @@ export function Doctor({ checks, onRecheck, onClose }: { checks: Check[] | 'fail
   const [checking, run] = useRunning();
   const { t } = useTranslation();
   const [reading, setReading] = useState(false);
+  const [calibrating, setCalibrating] = useState(false);
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
@@ -82,8 +84,13 @@ export function Doctor({ checks, onRecheck, onClose }: { checks: Check[] | 'fail
             <ScrollText aria-hidden />
             {t('error.log')}
           </Button>
+          <Button variant="outline" onClick={() => setCalibrating(true)}>
+            <Camera aria-hidden />
+            {t('app.lens.open')}
+          </Button>
         </div>
         {reading && <LogDialog onClose={() => setReading(false)} />}
+        {calibrating && <CalibrateDialog onClose={() => setCalibrating(false)} />}
       </DialogContent>
     </Dialog>
   );

@@ -1607,6 +1607,33 @@
       "running": "This match is already being imported.",
       "mountFailed": "Drive unreachable: check the card is inserted."
     },
+    "lens": {
+      "open": "Calibrate the camera",
+      "title": "Calibrate the camera",
+      "why": "Court positions are more precise once the camera's lens is measured. Once per camera.",
+      "loading": "Reading the cameras…",
+      "known": "Cameras already calibrated",
+      "own": "calibrated here",
+      "unnamed": "Unknown camera",
+      "camera": "{{name}} ({{width}}×{{height}}, {{fps}} fps)",
+      "board": "Print this board and glue it on cardboard, or show it full screen on a tablet or a computer.",
+      "boardAlt": "Checkerboard",
+      "full": "Full screen",
+      "print": "Download",
+      "film": "Film it for a minute with the match settings, about a metre away: in each corner of the picture, at the middle of each edge and in the centre, tilting it a little.",
+      "pick": "Pick that video.",
+      "start": "Calibrate",
+      "running": "Calibration",
+      "kept": "Calibrated: {{camera}}",
+      "measure": "Board seen on {{views}} frames, over {{coverage}} of the frame, within {{rms}} pixel.",
+      "why_views": "Board found on too few frames: film it closer, longer or in better light.",
+      "why_coverage": "The board covered only {{coverage}} of the frame: move it into the corners and along the edges too.",
+      "why_rms": "Corners badly aligned ({{rms}} pixels): keep the board flat and move slowly.",
+      "failed": "Calibration failed.",
+      "again": "Start again",
+      "none": "Unknown camera: court positions less precise.",
+      "refit": "Camera calibrated since: place the court again to use it."
+    },
     "court": {
       "open": "Place the court",
       "title": "Place the court",
@@ -1780,7 +1807,8 @@
       "verify": "Checking the backups",
       "export": "Export",
       "models": "Downloading the models",
-      "learn": "Reanalysis"
+      "learn": "Reanalysis",
+      "lens": "Camera calibration"
     },
     "count_one": "{{count}} task",
     "count_other": "{{count}} tasks",

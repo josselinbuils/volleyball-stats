@@ -37,7 +37,7 @@ its hosted page, with a redirect from the old address. `uv run python -m volleyb
 
 ```bash
 uv run python -m volleyball_stats.court click VIDEO          # once per court: rough clicks
-uv run python -m volleyball_stats.court fit outputs/court/VIDEO_clicks.json VIDEO --court NAME [--lens docs/lens_osmo_action3_standard_4k.json]
+uv run python -m volleyball_stats.court fit outputs/court/VIDEO_clicks.json VIDEO --court NAME [--lens src/volleyball_stats/lenses/dji_osmoaction3_3840x2160_50.json]
 uv run python -m volleyball_stats.court auto VIDEO           # next matches on a known court
 uv run python -m volleyball_stats.court grid VIDEO [--frame N] [--crop X,Y,W,H] [--scale N]   # a frame with a labelled pixel grid
 ```

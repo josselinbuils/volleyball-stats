@@ -25,7 +25,7 @@ export interface Check {
 /** A job (jobs.py) as the app shows it. */
 export interface Job {
   id: string;
-  kind: 'import' | 'court' | 'pipeline' | 'models' | 'hosting' | 'backup' | 'verify' | 'export' | 'learn';
+  kind: 'import' | 'court' | 'pipeline' | 'models' | 'hosting' | 'backup' | 'verify' | 'export' | 'learn' | 'lens';
   running: boolean;
   step?: string | null;
   failed?: string;
@@ -56,6 +56,8 @@ export interface Preparing {
   placing?: boolean;
   /** The clicks gave no court. */
   fitFailed?: boolean;
+  /** The camera has no lens here (`none`: positions less precise), or got one since the court was placed (`refit`). */
+  lens?: 'none' | 'refit' | null;
   left?: number | null;
   /** Before the analysis: its seconds on this machine (null when it was never timed), whether that is too slow, and whether a lid could sleep it. */
   seconds?: number | null;
@@ -184,4 +186,18 @@ export function sourceQuery(source: string | string[], extra: Record<string, str
     q.set(k, v);
   }
   return q.toString();
+}
+
+/** A camera as its files name it (lens.camera): `own` for a lens calibrated here. */
+export interface Camera {
+  model: string | null;
+  size: [number, number];
+  fps: number;
+  own?: boolean;
+}
+
+/** The camera's calibration (app.lens_state): its job, how it went once ended, and the cameras with a lens. */
+export interface LensState {
+  job: (Job & { result?: { camera: Camera; views: number; coverage?: number; rms?: number; kept: boolean; why?: 'views' | 'coverage' | 'rms' } | null }) | null;
+  lenses: Camera[];
 }

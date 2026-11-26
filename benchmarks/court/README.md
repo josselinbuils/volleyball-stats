@@ -202,7 +202,7 @@ glare and the fisheye curvature all beat the two strongest white lines. Removed.
   expected image position is known well enough to seed the snapping without clicks, or with one
   or two.
 - The snapping scored on the ASPOM footage, now that the Osmo Action 3's lens is calibrated
-  ([`lens_osmo_action3_standard_4k.json`](../../docs/lens_osmo_action3_standard_4k.json)): only `auto`
+  ([`dji_osmoaction3_3840x2160_50.json`](../../src/volleyball_stats/lenses/dji_osmoaction3_3840x2160_50.json)): only `auto`
   is checked there (above).
 - Prior art if clicks must go: a keypoint net on a Roboflow volleyball court dataset (CC BY 4.0,
   ~860 images) with RANSAC, which the literature puts at 0.1 m on broadcast frames but 0.5 m on gym

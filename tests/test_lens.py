@@ -1,7 +1,9 @@
+import json
+
 import cv2
 import numpy as np
 
-from volleyball_stats.lens import CORNERS, board_points, coverage, find_corners, fit_lens, pattern
+from volleyball_stats.lens import CAMERA, CORNERS, LEGACY, OWN, board_points, camera_of, coverage, find_corners, fit_lens, for_camera, for_match, pattern
 
 
 class TestPattern:
@@ -38,3 +40,45 @@ class TestCoverage:
         views = [np.array([[10.0, 10.0], [15.0, 12.0]]), np.array([[1910.0, 1070.0]])]
 
         assert coverage(views, (1920, 1080)) == 2 / 48
+
+
+class TestCamera:
+    def test_names_the_camera_its_tags_name(self):
+        video = {"codec_type": "video", "width": 3840, "height": 2160, "avg_frame_rate": "50/1", "tags": {"handler_name": "VideoHandler"}}
+        dji = {"format": {"tags": {"encoder": "DJI OsmoAction3"}}, "streams": [{"codec_type": "audio"}, video]}
+        iphone = {"format": {"tags": {"com.apple.quicktime.make": "Apple", "com.apple.quicktime.model": "iPhone 15"}}, "streams": [{**video, "avg_frame_rate": "30000/1001"}]}
+        copied = {"format": {"tags": {"encoder": "Lavf60.16.100"}}, "streams": [video]}
+
+        assert camera_of(dji) == {"model": "DJI OsmoAction3", "size": [3840, 2160], "fps": 50.0}
+        assert camera_of(iphone) == {"model": "Apple iPhone 15", "size": [3840, 2160], "fps": 29.97}
+        assert camera_of(copied)["model"] is None
+
+
+class TestProfiles:
+    OSMO = {"model": "DJI OsmoAction3", "size": [3840, 2160], "fps": 50.0}
+
+    def test_picks_the_cameras_profile_for_its_mode_only(self, tmp_path):
+        assert for_camera(tmp_path, self.OSMO).name == "dji_osmoaction3_3840x2160_50.json"
+        assert for_camera(tmp_path, {**self.OSMO, "fps": 100.0}) is None
+        assert for_camera(tmp_path, {**self.OSMO, "size": [2704, 1520]}) is None
+        assert for_camera(tmp_path, {**self.OSMO, "model": None}) is None
+
+    def test_prefers_the_latest_calibrated_here(self, tmp_path):
+        (tmp_path / OWN).mkdir()
+        for name, made in (("old", "2026-11-01"), ("new", "2026-11-20")):
+            (tmp_path / OWN / f"{name}.json").write_text(json.dumps({"camera": self.OSMO, "made": made}))
+        unnamed = {**self.OSMO, "model": None}
+        (tmp_path / OWN / "unnamed.json").write_text(json.dumps({"camera": unnamed, "made": "2026-11-02"}))
+
+        assert for_camera(tmp_path, self.OSMO).name == "new.json"
+        assert for_camera(tmp_path, unnamed).name == "unnamed.json"
+
+    def test_a_match_imported_before_cameras_takes_the_one_lens(self, tmp_path):
+        match = tmp_path / "matches" / "m"
+        match.mkdir(parents=True)
+
+        assert for_match(tmp_path, match) is None
+        (tmp_path / LEGACY).write_text("{}")
+        assert for_match(tmp_path, match) == tmp_path / LEGACY
+        (match / CAMERA).write_text(json.dumps({**self.OSMO, "model": "Apple iPhone 15"}))
+        assert for_match(tmp_path, match) is None

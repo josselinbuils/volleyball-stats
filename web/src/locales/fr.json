@@ -1607,6 +1607,33 @@
       "running": "Ce match est déjà en cours d'import.",
       "mountFailed": "Lecteur inaccessible : vérifiez que la carte est bien insérée."
     },
+    "lens": {
+      "open": "Calibrer la caméra",
+      "title": "Calibrer la caméra",
+      "why": "Les positions sur le terrain sont plus précises une fois l'objectif de la caméra mesuré. Une fois par caméra.",
+      "loading": "Lecture des caméras…",
+      "known": "Caméras déjà calibrées",
+      "own": "calibrée ici",
+      "unnamed": "Caméra inconnue",
+      "camera": "{{name}} ({{width}}×{{height}}, {{fps}} i/s)",
+      "board": "Imprimez ce damier et collez-le sur un carton, ou affichez-le en plein écran sur une tablette ou un ordinateur.",
+      "boardAlt": "Damier",
+      "full": "Plein écran",
+      "print": "Télécharger",
+      "film": "Filmez-le une minute avec les réglages des matchs, à environ un mètre : dans chaque coin de l'image, au milieu de chaque bord et au centre, en l'inclinant un peu.",
+      "pick": "Choisissez cette vidéo.",
+      "start": "Calibrer",
+      "running": "Calibration",
+      "kept": "Calibrée : {{camera}}",
+      "measure": "Damier vu sur {{views}} images, sur {{coverage}} du cadre, à {{rms}} pixel près.",
+      "why_views": "Damier trouvé sur trop peu d'images : filmez-le plus près, plus longtemps ou mieux éclairé.",
+      "why_coverage": "Le damier n'a couvert que {{coverage}} du cadre : passez-le aussi dans les coins et sur les bords.",
+      "why_rms": "Coins mal alignés ({{rms}} pixels) : gardez le damier bien à plat et bougez lentement.",
+      "failed": "Calibration impossible.",
+      "again": "Recommencer",
+      "none": "Caméra inconnue : positions sur le terrain moins précises.",
+      "refit": "Caméra calibrée depuis : replacez le terrain pour en profiter."
+    },
     "court": {
       "open": "Placer le terrain",
       "title": "Placer le terrain",
@@ -1780,7 +1807,8 @@
       "verify": "Vérification des sauvegardes",
       "export": "Export",
       "models": "Téléchargement des modèles",
-      "learn": "Réanalyse"
+      "learn": "Réanalyse",
+      "lens": "Calibration de la caméra"
     },
     "count_one": "{{count}} tâche",
     "count_other": "{{count}} tâches",

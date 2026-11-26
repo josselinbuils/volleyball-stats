@@ -3,8 +3,8 @@
     uv run python -m volleyball_stats.import_match SOURCE --teams "NAME_1[:COLOUR],NAME_2[:COLOUR]" [--from TIME] [--to TIME] [--date DATE] [--recording N]
 
 Joins a recording's chapters without re-encoding, from --from to --to in the joined video, into data/matches/MATCH/MATCH.mp4, and starts
-outputs/matches/MATCH/ with teams.json and start.jpg to check the sides. The first team is the one on the left at the first rally. The cut
-starts on the keyframe before --from. SOURCE is only read.
+outputs/matches/MATCH/ with teams.json, start.jpg to check the sides and the camera that filmed it (lens.CAMERA). The first team is
+the one on the left at the first rally. The cut starts on the keyframe before --from. SOURCE is only read.
 """
 
 import argparse
@@ -16,7 +16,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from volleyball_stats import decode, files, jobs, matches, teams
+from volleyball_stats import decode, files, jobs, lens, matches, teams
 
 CAMERA_NAME = re.compile(r"(\d{14})_\d+_")
 # Chapters of one recording follow each other within this long.
@@ -213,6 +213,8 @@ def main() -> None:
     if shutil.disk_usage(target.parent).free < needed:
         parser.error(f"{needed / 1e9:.0f} GB free needed in {target.parent}")
 
+    # Read on the card's own file: the joined one only names ffmpeg.
+    filmed = lens.camera(chapters[0].path)
     join(chapters, target, start, end, args.out.parent / TIMINGS if args.out.name == "matches" else None)
     from volleyball_stats.app import release
 
@@ -220,6 +222,7 @@ def main() -> None:
     release(list(args.source))
     out = args.out / name
     out.mkdir(parents=True, exist_ok=True)
+    files.write_text(out / lens.CAMERA, json.dumps(filmed, indent=2) + "\n")
     files.write_text(out / "teams.json", json.dumps({"teams": [{"name": n, "colour": c} for n, c in names], "date": day, **({"net": args.net} if args.net else {})}, indent=2, ensure_ascii=False) + "\n")
     subprocess.run(["ffmpeg", "-nostdin", "-v", "error", "-ss", str(min(3.0, probe(target).duration / 2)), "-i", str(target), "-frames:v", "1", "-vf", "scale=1280:-1", "-y", str(out / "start.jpg")], check=True)
     print(f"{target}\n{names[0][0]} must be on the left at the first rally: check {out / 'start.jpg'}")

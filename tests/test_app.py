@@ -3,7 +3,10 @@ from pathlib import Path
 
 import pytest
 
-from volleyball_stats import app, awake, files, jobs, matches, presence
+from volleyball_stats import app, awake, files, jobs, lens, matches, presence
+
+# The camera of the owner's matches, as its card's files name it.
+OSMO = {"model": "DJI OsmoAction3", "size": [3840, 2160], "fps": 50.0}
 
 
 class TestApp:
@@ -145,16 +148,42 @@ class TestApp:
         }
         assert app.handle("POST", "/app/server", "", {**body, "address": "nobody"}, list)[2] == 400
 
-    def test_fits_a_clicked_court_with_the_lens_once_calibrated(self, place, monkeypatch):
+    def test_fits_a_clicked_court_with_its_cameras_lens(self, place, monkeypatch):
         started = []
         monkeypatch.setattr(app.jobs, "start", lambda outputs, job_id, kind, steps, manual: started.append(steps[0][1]))
-        self.match(place, "m")
+        folder = self.match(place, "m")
         clicks = {"corner_left_far": [1, 2], "attack_left_far": [3, 4], "center_far": [5, 6], "corner_left_near": [7, 8]}
+        # Imported before cameras were told apart: the outputs folder's one lens, once calibrated.
         app.fit_court("m", clicks, "Gym")
-        (place / "outputs" / app.LENS).write_text("{}")
+        (place / "outputs" / lens.LEGACY).write_text("{}")
         app.fit_court("m", clicks, "Gym")
-        assert "--lens" not in started[0] and started[1][-2:] == ["--lens", str(place / "outputs" / app.LENS)]
+        assert "--lens" not in started[0] and started[1][-2:] == ["--lens", str(place / "outputs" / lens.LEGACY)]
+        # Its camera named: that camera's profile, none for one unknown, which the card says.
+        (folder / lens.CAMERA).write_text(json.dumps(OSMO))
+        app.fit_court("m", clicks, "Gym")
+        assert started[2][-1].endswith("dji_osmoaction3_3840x2160_50.json") and app.lens_need("m") is None
+        (folder / lens.CAMERA).write_text(json.dumps({**OSMO, "model": "Apple iPhone 15"}))
+        app.fit_court("m", clicks, "Gym")
+        assert "--lens" not in started[3] and app.lens_need("m") == "none"
+        # Calibrated since a court placed without it: to place again.
+        (folder / app.COURT).write_text(json.dumps({"lens": None}))
+        own = place / "outputs" / lens.OWN / "iphone.json"
+        own.parent.mkdir()
+        own.write_text(json.dumps({"camera": {**OSMO, "model": "Apple iPhone 15"}, "made": "2026-11-26T10:00:00"}))
+        assert app.lens_need("m") == "refit"
+        assert [(k["model"], k["own"]) for k in app.lens_state()["lenses"]] == [("Apple iPhone 15", True), ("DJI OsmoAction3", False)]
 
+    def test_calibrates_on_the_recordings_first_chapter(self, place, monkeypatch):
+        started = []
+        monkeypatch.setattr(app.jobs, "start", lambda outputs, job_id, kind, steps: started.append((job_id, kind, steps[0][1])))
+        monkeypatch.setattr(app, "chapters_of", lambda source, recording: [type("Chapter", (), {"path": Path(f"{source}/{recording}a.mp4")})(), None])
+        assert app.handle("POST", "/app/lens/calibrate", "", {"source": "card", "recording": 2}, list)[2] == 200
+        assert started == [("lens", "lens", ["volleyball_stats.lens", "calibrate", "card/2a.mp4", "--outputs", str(place / "outputs")])]
+        assert app.handle("GET", "/app/board", "", {}, list)[1] == "image/png"
+        self.job(place, "lens", kind="lens")
+        result = {"camera": OSMO, "views": 4, "kept": False, "why": "views"}
+        (jobs.folder(place / "outputs") / "lens.log").write_text("board on 4 frames\n" + lens.RESULT + json.dumps(result) + "\n")
+        assert app.lens_state()["job"]["result"] == result
 
     def test_exports_only_the_matches_ready(self, place, monkeypatch):
         started = []

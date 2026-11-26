@@ -1,5 +1,4 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { FileVideo, Folder, FolderOpen, HardDrive, LoaderCircle, Search } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { ErrorNote } from '@/components/ErrorNote';
 import { Button } from '@/components/ui/button';
@@ -9,8 +8,9 @@ import { cn } from '@/lib/utils';
 import { INPUT, call } from '@/lib/app';
 import type { Explained } from '@/lib/errors';
 import { RecordingPlayer } from './RecordingPlayer';
+import { SourcePicker, type Found } from './SourcePicker';
 import { suggestedTeams, type ClubState } from '@/components/helpers/club';
-import { NET_RANGE, importError, parseTime, validName, type Recording, type Source } from './helpers/setup';
+import { NET_RANGE, importError, parseTime, validName } from './helpers/setup';
 
 interface TeamField {
   name: string;
@@ -23,14 +23,7 @@ export function ImportDialog({ onClose }: { onClose: (started: boolean) => void 
   const { t, i18n } = useTranslation();
   const metres = (x: number) => x.toLocaleString(i18n.language, { maximumFractionDigits: 2 });
   const f = useFormat();
-  const [sources, setSources] = useState<Source[] | null>(null);
-  // Whether this machine can open its own file window, and whether it is open.
-  const [picker, setPicker] = useState(false);
-  const [picking, setPicking] = useState(false);
-  const [path, setPath] = useState('');
-  // The folder being read: a listed one's path, or the one typed.
-  const [scanning, setScanning] = useState<string | null>(null);
-  const [found, setFound] = useState<{ source: string | string[]; recordings: Recording[] } | null>(null);
+  const [found, setFound] = useState<Found | null>(null);
   const [recording, setRecording] = useState(0);
   const [teams, setTeams] = useState<[TeamField, TeamField]>([
     { name: '', colour: null },
@@ -53,66 +46,18 @@ export function ImportDialog({ onClose }: { onClose: (started: boolean) => void 
       }
     });
   }, []);
-  useEffect(() => {
-    void Promise.all([
-      fetch('/app/sources')
-        .then((r) => (r.ok ? (r.json() as Promise<Source[]>) : []))
-        .catch(() => [] as Source[]),
-      call<{ available: boolean }>('picker'),
-    ]).then(([found, own]) => {
-      setPicker(own.ok && own.available);
-      setSources(found);
-    });
-  }, []);
-
   const refuse = (error: string | undefined) => {
     const [key, values, detail] = importError(error);
     // Only a failure the app does not name may tell more in its log.
     setError({ text: t(key, values), detail: detail ?? null, log: key === 'app.import.failed' });
   };
-  const scan = async (source: string | string[], drive?: string, from = typeof source === 'string' ? source : 'pick') => {
-    if (typeof source === 'string') {
-      setPath(source);
-    }
-    setScanning(from);
-    setError(null);
-    setFound(null);
-    // A Windows drive is mounted first (WSL2).
-    const mounted = drive ? await call('mount', { drive }) : null;
-    if (mounted && !mounted.ok) {
-      setScanning(null);
-      refuse(mounted.error);
-      return;
-    }
-    const r = await call<{ source: string | string[]; recordings: Recording[] }>('scan', { source });
-    setScanning(null);
-    if (!r.ok) {
-      refuse(r.error);
-      return;
-    }
+  const read = (r: Found) => {
     setFound(r);
     setRecording(r.recordings.length - 1);
     setDate(r.recordings[r.recordings.length - 1].date);
     setFrom('');
     setTo('');
     setPreviewAt(0);
-  };
-
-  /** Videos (several at once) or a folder picked in the system's own file window. */
-  const pick = async (what: 'files' | 'folder') => {
-    setScanning(what);
-    setPicking(true);
-    setError(null);
-    const r = await call<{ source: string[] | null }>('pick', { what });
-    setPicking(false);
-    if (r.ok && r.source) {
-      await scan(r.source.length === 1 ? r.source[0] : r.source, undefined, what);
-      return;
-    }
-    setScanning(null);
-    if (!r.ok) {
-      refuse(r.error);
-    }
   };
 
   const times = [from, to].map((v) => (v.trim() ? parseTime(v) : 0));
@@ -150,51 +95,7 @@ export function ImportDialog({ onClose }: { onClose: (started: boolean) => void 
           <DialogTitle>{t('app.import.title')}</DialogTitle>
           <DialogDescription>{t('app.import.where')}</DialogDescription>
         </DialogHeader>
-        <div className="grid gap-2 sm:grid-cols-2">
-          {!sources && (
-            <p role="status" className="flex items-center gap-2 text-muted-foreground">
-              <LoaderCircle aria-hidden className="size-4 animate-spin" />
-              {t('app.import.finding')}
-            </p>
-          )}
-          {sources?.map((source) => (
-            <Button
-              key={source.path}
-              variant={path === source.path ? 'secondary' : 'outline'}
-              className="justify-start"
-              busy={scanning === source.path}
-              disabled={!!scanning}
-              onClick={() => void scan(source.path, source.drive)}
-            >
-              {source.card ? <HardDrive aria-hidden /> : <Folder aria-hidden />}
-              <span className="truncate">{source.card ? t('app.import.card', { name: source.name }) : source.name}</span>
-            </Button>
-          ))}
-          {sources &&
-            picker &&
-            (['files', 'folder'] as const).map((what) => (
-              <Button key={what} variant="outline" className="justify-start" busy={scanning === what} disabled={!!scanning} onClick={() => void pick(what)}>
-                {what === 'files' ? <FileVideo aria-hidden /> : <FolderOpen aria-hidden />}
-                {t(what === 'files' ? 'app.import.pickFiles' : 'app.import.pickFolder')}
-              </Button>
-            ))}
-          <form
-            className="flex gap-2 sm:col-span-2"
-            onSubmit={(event) => {
-              event.preventDefault();
-              if (path.trim()) {
-                void scan(path.trim(), undefined, 'typed');
-              }
-            }}
-          >
-            <input aria-label={t('app.import.path')} placeholder={t('app.import.path')} value={path} onChange={(e) => setPath(e.target.value)} className={cn(INPUT, 'min-w-0 flex-1 text-sm')} />
-            <Button type="submit" variant="outline" busy={scanning === 'typed'} disabled={!path.trim() || !!scanning}>
-              <Search aria-hidden />
-              {t('app.import.look')}
-            </Button>
-          </form>
-          {!!scanning && !picking && <p className="text-muted-foreground sm:col-span-2">{t('app.import.scanning')}</p>}
-        </div>
+        <SourcePicker onStart={() => (setError(null), setFound(null))} onFound={read} onError={refuse} />
         {found && (
           <form onSubmit={submit} className="grid gap-4">
             {found.recordings.length > 1 && (

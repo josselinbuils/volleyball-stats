@@ -101,14 +101,14 @@ A stopped analysis (sleep, restart, crash, update, the window closed) starts aga
 
 ## 4. The lens without a command
 
-- [ ] Done
+- [x] Done on the PC (26 Nov); the Mac's calibration from the app waits
 
 - Lens calibration in the app (the rule: every action in the app): the club's or Diagnostics' "Calibrer la caméra",
   the board to print or show full screen, the filmed clip picked like an import, `lens calibrate` as a job with its
   bar, the result checked (coverage, error) in plain words.
 - Profiles by camera: the camera's own files carry its model (DJI's tags, Apple's, GoPro's: read before the import
   remuxes them, the imported `MATCH.mp4` says only `Lavf`). A known model and mode picks its profile
-  (`lens_osmo_action3_standard_4k.json` today) with no calibration; an unknown one runs without, and the app says the
+  (`lenses/dji_osmoaction3_3840x2160_50.json` today) with no calibration; an unknown one runs without, and the app says the
   court's positions are less precise and offers the calibration.
 - Touches: `lens.py`, `import_match.py`, `app.py` (`LENS`, the court's `--lens`), the club or Diagnostics screen.
 - Done when: the court benchmark (`benchmarks/court/`) unchanged with the profile picked automatically; a calibration
@@ -318,3 +318,13 @@ One line per session: date, what was done, what is next.
   a video cut without re-encoding (frames before its start) had every frame read by index come that many frames early
   (`decode.timestamps`, fixed; the owner's matches have none, the `side_setend` clip 111: its teams benchmark back to the
   README's, side map 3/8 → 8/8, change of ends 0 → 1 found of 1, colour vs side 0.634 → 0.882). Next: step 4.
+- 26 Nov: step 4 done on the PC (`lens.py`, `CalibrateDialog`): the import keeps the camera its card's first file
+  names (`camera.json`: DJI's, Apple's, Android's, GoPro's tags; model, frame size and rate), the court is fitted with
+  that camera's lens: one calibrated here (`outputs/lenses/`) before the shipped profiles (`src/volleyball_stats/lenses/`,
+  the Osmo Action 3's in Standard 4K 50), `outputs/lens.json` for matches imported before. "Calibrer la caméra"
+  (Diagnostic, and an unknown camera's card) shows the board, picks the video like an import, runs as a job with its
+  counted bar, kept at 60% of the frame and 1 px, else what to film again. Court benchmark identical (manual, refine,
+  auto); the profile is `outputs/lens.json`'s K and D exactly, the three courts' lens too. A faster board search (on a
+  half or quarter frame then refined) was 4-8x faster but moved the lens 10-19 px from the profile (4 px for the same
+  search run again): kept the exact one, ~5 min a minute of 4K. Waits: the Mac's calibration from the app; whether the
+  Osmo's Wide mode differs in its tags (film a few seconds in Wide). Next: step 5.
