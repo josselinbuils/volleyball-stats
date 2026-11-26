@@ -141,7 +141,7 @@ A bad framing costs a match: check it before.
 
 ## 6. The recording guide in the app
 
-- [ ] Done
+- [x] Done (26 Nov): "Filmer un match" (`GuideDialog`), on the list and in the framing check
 
 `recording.md` for anyone: one screen (the list's menu, and linked from the framing check and the first run) with the
 placement as a drawing (SVG, no real footage), the settings for the known cameras, what to bring (the checklist), the
@@ -340,3 +340,9 @@ One line per session: date, what was done, what is next.
   shifted 400 px through the app: not found, clicked, left end line out → turn left. The camera's place and the heads
   only with the lens known (a guessed camera said "heads out" on a good picture). Court benchmark identical (manual,
   refine, auto), online state unchanged. Waits: the gym's own check (photo, phone, laptop), after step 11. Next: step 6.
+- 26 Nov: step 6 done (`GuideDialog`): "Filmer un match" on the list, and from "Tester le cadrage" (and back): the
+  court from above with the camera on the net's line and what it sees, from an end line the stand at 3.6 m strapped to
+  a goal post, 6 m back, the fan 80 cm below; five lines; the settings by camera (the Osmo Action 3's grouped by its
+  menus, another camera's in general with "Calibrer la caméra"); what to bring as boxes to tick (not kept); once before
+  the first match (the card, 2 h at home). Read at 390 px without horizontal scroll, light and dark, and at 1280 px.
+  Next: step 7.

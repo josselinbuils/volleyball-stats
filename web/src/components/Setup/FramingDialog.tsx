@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { CircleCheck, LoaderCircle, RotateCcw, Square, TriangleAlert } from 'lucide-react';
+import { CircleCheck, LoaderCircle, RotateCcw, Square, TriangleAlert, Video } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { ErrorNote } from '@/components/ErrorNote';
 import { JobProgress } from '@/components/JobProgress';
@@ -36,8 +36,8 @@ export function FramingVerdict({ framing }: { framing: Framing }) {
 }
 
 /** Before a match in a gym: a few seconds filmed from the camera's planned spot, its court found (or clicked the first
- * time, then stored for the matches) and drawn, with what to change. */
-export function FramingDialog({ onClose }: { onClose: () => void }) {
+ * time, then stored for the matches) and drawn, with what to change. `onGuide` opens the recording guide. */
+export function FramingDialog({ onClose, onGuide }: { onClose: () => void; onGuide: () => void }) {
   const { t, i18n } = useTranslation();
   const f = useFormat();
   const metres = (x: number) => x.toLocaleString(i18n.language, { maximumFractionDigits: 1 });
@@ -116,6 +116,10 @@ export function FramingDialog({ onClose }: { onClose: () => void }) {
         )}
         {picking && (
           <>
+            <Button variant="outline" className="w-fit" onClick={onGuide}>
+              <Video aria-hidden />
+              {t('app.guide.open')}
+            </Button>
             <SourcePicker onStart={() => (setError(null), setFound(null))} onFound={(r) => (setFound(r), setRecording(r.recordings.length - 1))} onError={refuse} />
             {found && found.recordings.length > 1 && (
               <fieldset className="grid gap-1.5">

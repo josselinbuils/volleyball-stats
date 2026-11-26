@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Download, FolderInput, Frame, Shield, Stethoscope, TriangleAlert, Wifi } from 'lucide-react';
+import { Download, FolderInput, Frame, Shield, Stethoscope, TriangleAlert, Video, Wifi } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ErrorNote } from '@/components/ErrorNote';
@@ -8,6 +8,7 @@ import { useRunning } from '@/hooks/useRunning';
 import { ClubDialog } from '@/components/ClubDialog';
 import { Doctor, checkText } from './Doctor';
 import { FramingDialog } from './FramingDialog';
+import { GuideDialog } from './GuideDialog';
 import { ImportDialog } from './ImportDialog';
 import { NetworkDialog } from './NetworkDialog';
 import { PreparingCard } from './PreparingCard';
@@ -30,7 +31,7 @@ export function Setup() {
   // The machine's checks: null while they run the first time, 'failed' when the server did not answer.
   const [checks, setChecks] = useState<Check[] | 'failed' | null>(null);
   const [modelsError, setModelsError] = useState<Explained | null>(null);
-  const [dialog, setDialog] = useState<'import' | 'framing' | 'doctor' | 'club' | 'network' | null>(null);
+  const [dialog, setDialog] = useState<'import' | 'guide' | 'framing' | 'doctor' | 'club' | 'network' | null>(null);
   const refresh = useCallback(async () => {
     // Unanswered (the server restarts): the next poll reads it.
     const found = await call<AppState>('state');
@@ -137,6 +138,10 @@ export function Setup() {
           <FolderInput aria-hidden />
           {t('app.import.open')}
         </Button>
+        <Button variant="outline" className="bg-card" onClick={() => setDialog('guide')}>
+          <Video aria-hidden />
+          {t('app.guide.open')}
+        </Button>
         <Button variant="outline" className="bg-card" onClick={() => setDialog('framing')}>
           <Frame aria-hidden />
           {t('app.framing.open')}
@@ -177,7 +182,8 @@ export function Setup() {
           }}
         />
       )}
-      {dialog === 'framing' && <FramingDialog onClose={() => setDialog(null)} />}
+      {dialog === 'guide' && <GuideDialog onClose={() => setDialog(null)} onFraming={() => setDialog('framing')} />}
+      {dialog === 'framing' && <FramingDialog onClose={() => setDialog(null)} onGuide={() => setDialog('guide')} />}
       {dialog === 'club' && <ClubDialog onClose={() => setDialog(null)} />}
       {dialog === 'network' && <NetworkDialog onClose={() => setDialog(null)} />}
       {dialog === 'doctor' && <Doctor checks={checks} onRecheck={recheck} onClose={() => setDialog(null)} />}
