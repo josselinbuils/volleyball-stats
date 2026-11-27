@@ -628,6 +628,7 @@
     "update": "Mettre à jour",
     "updating": "Mise à jour…",
     "updateFailed": "Mise à jour impossible.",
+    "autoUpdating": "Mise à jour de l'application…",
     "mergeTitle": "Relier ces joueurs ?",
     "unsavedLeave": "Les perdre",
     "matchesLoading": "Chargement…",
@@ -1947,7 +1948,8 @@
       "learn": "Réanalyse",
       "lens": "Calibration de la caméra",
       "placement": "Test du cadrage",
-      "netlify": "Publication sur Netlify"
+      "netlify": "Publication sur Netlify",
+      "code": "Mise à jour de l'application"
     },
     "count_one": "{{count}} tâche",
     "count_other": "{{count}} tâches",

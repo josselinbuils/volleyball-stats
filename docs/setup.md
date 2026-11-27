@@ -76,7 +76,10 @@ SmartScreen and Gatekeeper beside it): the download page, whose links stay the s
 take the code from GitHub at install.
 
 Without git, the code's version is the archive's commit (`.install.json`: its files too), the commits behind come from
-the branch's feed and "Mettre à jour" writes the new archive over it, removing the files gone (`updates.py`).
+the branch's feed and "Mettre à jour" writes the new archive over it, removing the files gone (`updates.py`). Such an
+install also updates itself (`app.auto_update`): at the server's start and every hour, when no job, apply nor match's
+review runs, then the server starts again on it; meanwhile nothing else starts and the pages say "Mise à jour de
+l'application…", reloading once it ended. A git checkout keeps the button: its owner pulls.
 
 Natively, torch comes from PyTorch's CUDA 13 index (`[tool.uv.sources]`) and the OCR from `onnxruntime-gpu` on torch's
 CUDA. What POSIX has and Windows lacks has a stand-in in the code: processes (`procs.py`: `OpenProcess` and its creation

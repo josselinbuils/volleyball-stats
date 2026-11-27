@@ -628,6 +628,7 @@
     "update": "Update",
     "updating": "Updating…",
     "updateFailed": "Update failed.",
+    "autoUpdating": "Updating the app…",
     "mergeTitle": "Join these players?",
     "unsavedLeave": "Lose them",
     "matchesLoading": "Loading…",
@@ -1947,7 +1948,8 @@
       "learn": "Reanalysis",
       "lens": "Camera calibration",
       "placement": "Framing test",
-      "netlify": "Publishing to Netlify"
+      "netlify": "Publishing to Netlify",
+      "code": "Updating the app"
     },
     "count_one": "{{count}} task",
     "count_other": "{{count}} tasks",

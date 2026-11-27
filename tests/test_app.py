@@ -1,5 +1,7 @@
 import json
 import os
+import threading
+import time
 from pathlib import Path
 
 import pytest
@@ -285,6 +287,28 @@ class TestApp:
         assert started[-1] == ["volleyball_stats.learn", "--update", str(app.MATCHES), "--only", "m"]
         app.handle("POST", "/app/learn", "", {"here": True}, list, lambda: False)
         assert started[-1] == ["volleyball_stats.learn", "--update", str(app.MATCHES)]
+
+    def test_updates_an_install_by_itself_when_idle(self, monkeypatch, place):
+        done, restarted, idle = [], threading.Event(), [False]
+        monkeypatch.setattr(app.updates, "installed", lambda root: {"commit": "a"})
+        monkeypatch.setattr(app.updates, "behind", lambda root: {"behind": 2})
+        monkeypatch.setattr(app, "update", lambda: done.append(app.handle("POST", "/app/import", "", {}, list)[2]))
+        app.auto_update(lambda: idle[0], restarted.set, every=0.01)
+        time.sleep(0.05)
+        # A job or a review open: it waits.
+        assert not done and not restarted.is_set()
+        idle[0] = True
+        assert restarted.wait(1)
+        # Nothing else starts meanwhile, the pages show it.
+        assert done == [409] and app.tasks()[0] == {"id": "code", "kind": "code", "running": True}
+        app.UPDATING.clear()
+
+    def test_leaves_a_git_checkout_to_its_owner(self, monkeypatch):
+        asked = threading.Event()
+        monkeypatch.setattr(app.updates, "installed", lambda root: None)
+        monkeypatch.setattr(app.updates, "behind", lambda root: asked.set())
+        app.auto_update(lambda: True, lambda: None, every=3600)
+        assert not asked.wait(0.1)
 
     def test_refuses_to_quit_while_applying(self):
         assert app.handle("POST", "/app/quit", "", {}, list, lambda: True)[2] == 409

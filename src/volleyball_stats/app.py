@@ -23,6 +23,7 @@ import traceback
 import urllib.error
 import urllib.request
 import webbrowser
+from collections.abc import Callable
 from pathlib import Path
 from urllib.parse import parse_qs
 
@@ -899,6 +900,33 @@ def update() -> None:
             raise RuntimeError((sync.stderr.strip().splitlines() or [f"uv sync: exit {sync.returncode}"])[-1])
 
 
+# Set while the automatic update runs (`auto_update`): nothing else starts meanwhile, the pages show it.
+UPDATING = threading.Event()
+AUTO_UPDATE_S = 3600.0
+
+
+def auto_update(idle: Callable[[], bool], restart: Callable[[], None], every: float = AUTO_UPDATE_S) -> threading.Thread:
+    """An install without git (the installers') brought up to date by itself, as "Mettre à jour" does, at the server's
+    start and every `every` while it runs: only when nothing would be disturbed (`idle`: no job, no apply, no match's
+    review open), then the server started again on it (`restart`). A git checkout keeps the button: its owner pulls."""
+
+    def run() -> None:
+        while True:
+            try:
+                if updates.installed(git_check.ROOT) and idle() and updates.behind(git_check.ROOT):
+                    UPDATING.set()
+                    update()
+                    return restart()
+            except (RuntimeError, OSError, subprocess.SubprocessError) as error:
+                print(f"Automatic update failed: {error}", flush=True)
+            UPDATING.clear()
+            time.sleep(every)
+
+    thread = threading.Thread(target=run, daemon=True)
+    thread.start()
+    return thread
+
+
 def learn_state(listed: list[dict]) -> dict:
     """The update (learn.update): the matches waiting for it and why (`review.due`), and its job."""
     job = next((j for j in jobs.state(OUTPUTS) if j["id"] == LEARN), None)
@@ -929,6 +957,8 @@ def tasks(review: dict | None = None, match: str | None = None) -> list[dict]:
     """The app's background work, for the pill on every page: the review's run on `match` (`review`: `eta`'s with
     `running`, else how it failed) and the jobs, running or ended in the last RECENT_S."""
     now, found = time.time(), []
+    if UPDATING.is_set():
+        found.append({"id": "code", "kind": "code", "running": True})
     if review:
         step = review["steps"][review["done"]] if review["running"] else review.get("failed")
         found.append({"id": "review", "kind": "review", "match": match, "teams": teams_of(match), "step": step, "failed": bool(review.get("failed")), **{k: review.get(k) for k in ("running", "stage", "fraction", "part", "left", "elapsed", "late", "error")}})
@@ -1045,6 +1075,8 @@ def handle(
                     return reply({"error": "missing"}, 404)
                 return image.read_bytes(), kind, 200
             return None
+        if UPDATING.is_set() and route not in ("alive", "leaving"):
+            return reply({"error": "busy"}, 409)
         name = str(body.get("match", ""))
         if name and ("/" in name or ".." in name):
             raise ValueError(name)

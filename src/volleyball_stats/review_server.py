@@ -1443,6 +1443,8 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/pull":
             return pulled(body, s.out)
         if path == "/open":
+            if app.UPDATING.is_set():
+                return reply({"error": "busy"}, 409)
             return self.open(body)
         return review.post(path, body) if review else BUSY
 
@@ -1475,6 +1477,7 @@ def serve(out: Path, theme: str, port: int, browser: bool, roster: Path, match: 
     threading.Thread(target=backing_all, args=(out.parent, lambda: not server.review and not server.opening), daemon=True).start()
     threading.Thread(target=feedback.watch, args=(out.parent, server.reports_came), daemon=True).start()
     presence.watch(server.may_stop, lambda: server.lock)
+    app.auto_update(lambda: not server.review and server.may_stop(), lambda: app.restart_after(server.arguments(), server.lock))
     url = f"http://127.0.0.1:{port}/{'review' if match else 'matches/'}"
     print(f"Review: {url} (Ctrl+C to stop)", flush=True)
     if browser:
