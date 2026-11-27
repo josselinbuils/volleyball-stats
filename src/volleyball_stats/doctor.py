@@ -86,7 +86,8 @@ def memory() -> dict:
     found = procs.total_memory()
     if found is None:
         return {"id": "memory", "status": "ok", "gb": None}
-    total = found / 1e9
+    # In GiB, as memory is sold: 8 GiB are 8.6 GB.
+    total = found / 2**30
     status = "error" if total < RAM_GB else "warn" if total < WARN_RAM_GB else "ok"
     return {"id": "memory", "status": status, "gb": round(total), "wsl": system() == "wsl"}
 

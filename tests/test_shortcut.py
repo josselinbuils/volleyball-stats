@@ -24,16 +24,38 @@ class TestShortcut:
         assert info["CFBundleExecutable"] == "volleyball-stats" and info["LSUIElement"] is True
 
     @pytest.mark.skipif(os.name == "nt", reason="a Mac's rights")
-    def test_makes_a_mac_app_in_place_of_the_command(self, tmp_path, monkeypatch):
+    def test_makes_a_mac_app_in_applications_only(self, tmp_path, monkeypatch):
         monkeypatch.setattr(shortcut.Path, "home", lambda: tmp_path)
+        monkeypatch.setattr(shortcut, "APPLICATIONS", tmp_path / "system")
         (tmp_path / "Desktop").mkdir()
         (tmp_path / "Desktop" / "Volleyball Stats.command").write_text("", encoding="utf-8")
+        before = tmp_path / "Desktop" / "Volleyball Stats.app"
+        (before / "Contents").mkdir(parents=True)
+        (before / "Contents/Info.plist").write_bytes(shortcut.info_plist())
         made = shortcut.make_mac(PAIR)
-        assert [p.parent.name for p in made] == ["Applications", "Desktop"]
-        assert not (tmp_path / "Desktop" / "Volleyball Stats.command").exists()
+        assert made == [tmp_path / "Applications" / "Volleyball Stats.app"]
+        assert list((tmp_path / "Desktop").iterdir()) == []
         program = made[0] / "Contents/MacOS/volleyball-stats"
-        assert program.stat().st_mode & 0o111 and str(shortcut.LAUNCHER) in program.read_text(encoding="utf-8")
+        assert program.stat().st_mode & 0o111 and f'nohup "{shortcut.LAUNCHER}"' in program.read_text(encoding="utf-8")
         assert (made[0] / "Contents/Resources/volleyball-stats.icns").stat().st_size > 0
+
+    @pytest.mark.skipif(os.name == "nt", reason="a Mac's rights")
+    def test_makes_the_dmg_app_the_shortcut(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(shortcut.Path, "home", lambda: tmp_path)
+        monkeypatch.setattr(shortcut, "APPLICATIONS", tmp_path / "system")
+        monkeypatch.setattr(shortcut, "unquarantined", lambda app: True)
+        dragged = tmp_path / "system" / "Volleyball Stats.app"
+        for part in ("_CodeSignature", "Resources", "MacOS"):
+            (dragged / "Contents" / part).mkdir(parents=True)
+        (dragged / "Contents/Resources/install.sh").write_text("", encoding="utf-8")
+        before = tmp_path / "Applications" / "Volleyball Stats.app"
+        (before / "Contents").mkdir(parents=True)
+        (before / "Contents/Info.plist").write_bytes(shortcut.info_plist())
+        assert shortcut.make_mac(PAIR) == [dragged]
+        assert not before.exists() and not (dragged / "Contents/_CodeSignature").exists()
+        assert sorted(p.name for p in (dragged / "Contents/Resources").iterdir()) == ["volleyball-stats.icns"]
+        monkeypatch.setattr(shortcut, "unquarantined", lambda app: False)
+        assert shortcut.make_mac(PAIR) == []
 
     def test_is_made_again_on_a_new_version_or_colours(self, tmp_path, monkeypatch):
         monkeypatch.setattr(shortcut, "MADE", tmp_path / "shortcut")

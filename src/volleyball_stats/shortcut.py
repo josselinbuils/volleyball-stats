@@ -1,6 +1,6 @@
 """The app's shortcut, opening it with no terminal: Windows' (desktop and Start menu, the app on Windows or in WSL2), a Mac's app
-(Applications and desktop), Linux's applications menu, its icon in the club's colours (icon.py). Made again by the
-app's start and the club's changes when its VERSION or colours change, in place of the older ones (a .bat, a .command),
+(the .dmg's dragged to Applications, else one in the user's Applications), Linux's applications menu, its icon in the
+club's colours (icon.py). Made again by the app's start and the club's changes when its VERSION or colours change, in place of the older ones (a .bat, a .command),
 when install.sh's launcher is there.
 
     uv run python -m volleyball_stats.shortcut
@@ -17,11 +17,12 @@ from volleyball_stats import club_settings, doctor, icon
 
 NAME = "Volleyball Stats"
 # Bumped when the shortcut changes: each machine's is made again once.
-VERSION = 3
+VERSION = 4
 # install.sh's, or on Windows the installer's (`uv run stats` in the code's folder).
 LAUNCHER = Path.home() / (".local/bin/volleyball-stats.cmd" if os.name == "nt" else ".local/bin/volleyball-stats")
 MADE = Path.home() / ".local/share/volleyball-stats/shortcut"
 BUNDLE_ID = "io.github.josselinbuils.volleyball-stats"
+APPLICATIONS = Path("/Applications")
 ONE_AT_A_TIME = threading.Lock()
 
 
@@ -108,25 +109,49 @@ def info_plist() -> bytes:
     )
 
 
+# Apart from the app's own process, which ends: macOS opens an app still running again only through it (a click on its
+# icon would do nothing), the window then coming from a new start (`stats` finding the app open).
+MAC_PROGRAM = '#!/bin/sh\nnohup "{launcher}" >/dev/null 2>&1 </dev/null &\n'
+
+
+def ours(app: Path) -> bool:
+    try:
+        return plistlib.loads((app / "Contents/Info.plist").read_bytes()).get("CFBundleIdentifier", "").startswith(BUNDLE_ID)
+    except (OSError, plistlib.InvalidFileException):
+        return False
+
+
+def unquarantined(app: Path) -> bool:
+    """Whether `app` has no quarantine left, removed if needed: macOS would call a quarantined app changed damaged."""
+    subprocess.run(["xattr", "-dr", "com.apple.quarantine", str(app)], capture_output=True)
+    return subprocess.run(["xattr", "-p", "com.apple.quarantine", str(app)], capture_output=True).returncode != 0
+
+
 def make_mac(pair: tuple[str, str]) -> list[Path]:
-    """`Volleyball Stats.app` in the user's Applications (Launchpad, Spotlight) and on the desktop."""
+    """`Volleyball Stats.app`: the .dmg's in Applications made the shortcut, else one in the user's Applications
+    (Launchpad, Spotlight); those made before elsewhere (the desktop) removed."""
     home = Path.home()
-    made = []
-    for folder in (home / "Applications", home / "Desktop"):
-        if folder.name == "Desktop" and not folder.is_dir():
-            continue
-        app = folder / f"{NAME}.app"
-        shutil.rmtree(app, ignore_errors=True)
-        (app / "Contents/MacOS").mkdir(parents=True)
-        (app / "Contents/Resources").mkdir()
-        (app / "Contents/Info.plist").write_bytes(info_plist())
-        icon.write(pair, app / "Contents/Resources/volleyball-stats.icns")
-        program = app / "Contents/MacOS/volleyball-stats"
-        program.write_text(f'#!/bin/sh\nexec "{LAUNCHER}"\n', encoding="utf-8")
-        program.chmod(0o755)
-        made.append(app)
+    dragged = APPLICATIONS / f"{NAME}.app"
+    app = dragged if dragged.is_dir() and os.access(dragged / "Contents", os.W_OK) else home / "Applications" / f"{NAME}.app"
+    if app == dragged and not unquarantined(app):
+        return []
+    for old in (home / "Applications" / f"{NAME}.app", home / "Desktop" / f"{NAME}.app"):
+        if old != app and ours(old):
+            shutil.rmtree(old, ignore_errors=True)
     (home / "Desktop" / f"{NAME}.command").unlink(missing_ok=True)
-    return made
+    # Written in place: the .dmg's signature, its installer and its program replaced.
+    shutil.rmtree(app / "Contents/_CodeSignature", ignore_errors=True)
+    (app / "Contents/Resources/install.sh").unlink(missing_ok=True)
+    (app / "Contents/MacOS").mkdir(parents=True, exist_ok=True)
+    (app / "Contents/Resources").mkdir(exist_ok=True)
+    (app / "Contents/Info.plist").write_bytes(info_plist())
+    icon.write(pair, app / "Contents/Resources/volleyball-stats.icns")
+    program = app / "Contents/MacOS/volleyball-stats"
+    program.write_text(MAC_PROGRAM.format(launcher=LAUNCHER), encoding="utf-8")
+    program.chmod(0o755)
+    # Finder and the Dock keep an app's icon until it changes.
+    os.utime(app)
+    return [app]
 
 
 def desktop_entry(picture: Path) -> str:

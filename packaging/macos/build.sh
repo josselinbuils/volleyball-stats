@@ -1,6 +1,7 @@
 #!/bin/sh
-# volleyball-stats.dmg: an app that installs volleyball-stats at its first open (install.sh in a Terminal window, its
-# steps and bars, nothing asked), then opens it as the desktop's icon does. On a Mac (codesign, hdiutil):
+# volleyball-stats.dmg: the app to drag to Applications. Its first open installs volleyball-stats (install.sh in a Terminal
+# window, its steps and bars, nothing asked), then opens it again: the app. Its first start makes it the shortcut
+# (shortcut.py: the club's icon). On a Mac (codesign, hdiutil):
 #
 #   sh packaging/macos/build.sh    # packaging/macos/dist/volleyball-stats.dmg
 #
@@ -23,24 +24,30 @@ cat >"$app/Contents/Info.plist" <<'PLIST'
 <dict>
   <key>CFBundleName</key><string>Volleyball Stats</string>
   <key>CFBundleDisplayName</key><string>Volleyball Stats</string>
-  <key>CFBundleIdentifier</key><string>io.github.josselinbuils.volleyball-stats.installer</string>
+  <key>CFBundleIdentifier</key><string>io.github.josselinbuils.volleyball-stats</string>
   <key>CFBundleExecutable</key><string>volleyball-stats</string>
   <key>CFBundleIconFile</key><string>volleyball-stats</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleShortVersionString</key><string>1.0</string>
   <key>CFBundleVersion</key><string>1</string>
   <key>LSMinimumSystemVersion</key><string>11.0</string>
+  <key>LSUIElement</key><true/>
 </dict>
 </plist>
 PLIST
 
 cat >"$app/Contents/MacOS/volleyball-stats" <<'PROGRAM'
 #!/bin/sh
-# Installed: the app, as its desktop icon opens it. Else install.sh in a Terminal window, which opens it at the end.
+# Installed: the app, apart from this process (shortcut.MAC_PROGRAM). Else install.sh in a Terminal window, which opens
+# this app again at the end.
 launcher="$HOME/.local/bin/volleyball-stats"
-[ -x "$launcher" ] && exec "$launcher"
+if [ -x "$launcher" ]; then
+  nohup "$launcher" >/dev/null 2>&1 </dev/null &
+  exit 0
+fi
+app=$(cd "$(dirname "$0")/../.." && pwd)
 script="${TMPDIR:-/tmp}/volleyball-stats-install.command"
-printf '#!/bin/sh\nVOLLEYBALL_STATS_DETACH=1 exec /bin/sh "%s"\n' "$(cd "$(dirname "$0")/../Resources" && pwd)/install.sh" >"$script"
+printf '#!/bin/sh\nVOLLEYBALL_STATS_APP="%s" exec /bin/sh "%s"\n' "$app" "$app/Contents/Resources/install.sh" >"$script"
 chmod +x "$script"
 xattr -d com.apple.quarantine "$script" 2>/dev/null || true
 exec open -a Terminal "$script"

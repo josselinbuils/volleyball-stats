@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Download, FolderInput, Frame, ListChecks, Shield, Stethoscope, TriangleAlert, Video, Wifi } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { ErrorNote } from '@/components/ErrorNote';
 import { Button } from '@/components/ui/button';
 import { useRunning } from '@/hooks/useRunning';
@@ -141,6 +141,7 @@ export function Setup({ first: given, onReview, reviewing }: { first?: FirstStat
       {problems.map((check) => (
         <Alert key={check.id} variant={check.status === 'error' ? 'destructive' : 'warning'}>
           <TriangleAlert aria-hidden />
+          <AlertTitle>{t(`app.doctor.name.${check.id}`)}</AlertTitle>
           <AlertDescription className="grid gap-2">
             <span>{checkText(t, check)}</span>
             {check.command && <code className="w-fit rounded-md bg-muted px-2 py-1 font-mono text-xs select-all">{check.command}</code>}

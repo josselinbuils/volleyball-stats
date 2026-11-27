@@ -103,14 +103,15 @@ mkdir -p "$HOME/.local/bin"
 launcher=$HOME/.local/bin/volleyball-stats
 printf '#!/bin/sh\nexport PATH="%s:$PATH"\ncd "%s" && exec "%s" run stats "$@"\n' "$PATH" "$DIR" "$UV" >"$launcher"
 chmod +x "$launcher"
-if [ -n "$VOLLEYBALL_STATS_DETACH" ]; then
-  # The .dmg's app: the app apart from this window, which can close.
-  say "Ouverture de Volleyball Stats : vous pouvez fermer cette fenêtre. La prochaine fois, son icône sur le bureau." \
-    "Opening Volleyball Stats: you can close this window. Next time, its icon on the desktop."
-  nohup "$launcher" >/dev/null 2>&1 &
+if [ -n "$VOLLEYBALL_STATS_APP" ]; then
+  # The .dmg's app, opened again: the app, apart from this window.
+  say "Ouverture de Volleyball Stats : vous pouvez fermer cette fenêtre." "Opening Volleyball Stats: you can close this window."
+  open "$VOLLEYBALL_STATS_APP"
   exit 0
 fi
-if [ "$(uname -s)" = Darwin ] || [ -n "$WSL_DISTRO_NAME" ]; then
+if [ "$(uname -s)" = Darwin ]; then
+  next="open \"Volleyball Stats\" in Applications"
+elif [ -n "$WSL_DISTRO_NAME" ]; then
   next="open \"Volleyball Stats\" on the desktop"
 else
   next="open \"Volleyball Stats\" in the applications menu"

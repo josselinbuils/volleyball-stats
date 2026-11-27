@@ -1,8 +1,9 @@
 """The app's open windows, for `stats` (the review's --with-window) to stop once its last one closes: each page says it
 is open (/app/alive, every 30 s) and that it goes (/app/leaving, as it unloads). A reload or a match being opened leaves
-and comes back within AFTER_LEAVING_S. Started otherwise (`stats browser`, `stats server`), Ctrl+C stops it."""
+and comes back within AFTER_LEAVING_S; on macOS closing a window hides an app, its window back from its icon: HIDDEN_S. Started otherwise (`stats browser`, `stats server`), Ctrl+C stops it."""
 
 import os
+import sys
 import threading
 import time
 from collections.abc import Callable
@@ -10,6 +11,7 @@ from collections.abc import Callable
 # How long a page that left has to come back (a reload, the review of another match) before the app stops: a reload
 # after an apply comes while the server still works (the pictures), 5 s were too few (13 Nov).
 AFTER_LEAVING_S = 30.0
+HIDDEN_S = 3600.0
 # A page heard from no more for so long is gone without saying it (a browser that crashed); a minimized window's
 # timers may slow to once a minute, a sleeping one's longer.
 SILENT_S = 30 * 60.0
@@ -22,8 +24,9 @@ START_S = 120.0
 class Presence:
     """The pages open, each by its id and when it was last heard from."""
 
-    def __init__(self, now: Callable[[], float] = time.monotonic):
+    def __init__(self, now: Callable[[], float] = time.monotonic, after_leaving: float = AFTER_LEAVING_S):
         self.now = now
+        self.after_leaving = after_leaving
         self.started = now()
         self.pages: dict[str, float] = {}
         self.left_at: float | None = None
@@ -44,20 +47,20 @@ class Presence:
             self.left_at = self.now()
 
     def closed(self) -> bool:
-        """Whether every window has closed: none open, the last one gone AFTER_LEAVING_S ago, none ever within
+        """Whether every window has closed: none open, the last one gone `after_leaving` ago, none ever within
         START_S."""
         now = self.now()
         with self.lock:
             self.pages = {page: at for page, at in self.pages.items() if now - at < SILENT_S}
             if self.pages:
                 return False
-            if self.left_at is not None and now - self.left_at < AFTER_LEAVING_S:
+            if self.left_at is not None and now - self.left_at < self.after_leaving:
                 return False
             return now - self.started >= START_S or self.left_at is not None
 
 
 ON = False
-PAGES = Presence()
+PAGES = Presence(after_leaving=HIDDEN_S if sys.platform == "darwin" else AFTER_LEAVING_S)
 
 
 def watch(may_stop: Callable[[], bool], lock: Callable[[], object] | None = None) -> None:

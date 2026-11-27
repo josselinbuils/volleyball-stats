@@ -2,7 +2,8 @@
 
 Everything the pipeline sees comes from one fixed camera: where it stands and how it is set matter more than anything else.
 
-The app's "Filmer un match" (on the list) shows the short version: the placement drawn, the settings, what to bring.
+The app's "Filmer un match" (on the list) shows the short version, for any camera: the placement drawn, the settings,
+what to bring. This page is the setup it comes from (the Osmo Action 3, its menus, the stand and fan used).
 
 In short: one fixed camera on a sideline, aligned with the net, framing both end lines, filming 4K (2.7K minimum) at 50 fps with everything locked.
 

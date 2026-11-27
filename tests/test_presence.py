@@ -44,6 +44,16 @@ class TestPresence:
         clock.at += 1
         assert open_.closed()
 
+    def test_stays_hidden_longer(self):
+        clock = Clock()
+        open_ = presence.Presence(clock, after_leaving=presence.HIDDEN_S)
+        open_.seen("a")
+        open_.left("a")
+        clock.at = presence.HIDDEN_S - 1
+        assert not open_.closed()
+        clock.at = presence.HIDDEN_S
+        assert open_.closed()
+
     def test_stays_for_a_page_coming_back(self):
         open_, clock = pages()
         open_.seen("a")
