@@ -95,9 +95,9 @@ Il faut un ordinateur avec une carte graphique : une NVIDIA, ou un Mac à puce A
   quand même**.
 - **Linux :** dans un terminal, collez cette ligne puis appuyez sur Entrée :
 
-```bash
-curl -LsSf https://raw.githubusercontent.com/josselinbuils/volleyball-stats/main/install.sh | sh
-```
+  ```bash
+  curl -LsSf https://raw.githubusercontent.com/josselinbuils/volleyball-stats/main/install.sh | sh
+  ```
 
 La première fois prend de longues minutes, puis l'application s'ouvre ; elle se met ensuite à jour toute seule. Les
 fois suivantes, ouvrez « Volleyball Stats » : dans Applications sur Mac (fermer sa fenêtre la masque, Quitter la
