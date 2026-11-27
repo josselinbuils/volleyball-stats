@@ -149,7 +149,11 @@ Developers start it with `uv run stats` (`uv run stats --help` for the others). 
 
 ## Development
 
+Clone the repository and run `./install.sh` in it: it keeps your checkout (the app's "Update" then pulls it) and
+installs the rest.
+
 ```bash
+git clone https://github.com/josselinbuils/volleyball-stats && cd volleyball-stats && ./install.sh
 uv run pytest -q                                  # Python tests
 cd web && npm install && npm test && npm run build   # the page (Node 22), its build committed
 ```

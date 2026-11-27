@@ -96,10 +96,12 @@ def wsl_path(windows: str) -> Path:
     return Path(subprocess.run(["wslpath", "-u", windows], capture_output=True, text=True, encoding="utf-8", errors="replace").stdout.strip())
 
 
-def info_plist() -> bytes:
-    """The Mac app's description (packaging/macos's), with the launcher it starts."""
+def info_plist(before: dict | None = None) -> bytes:
+    """The Mac app's description (packaging/macos's), with the launcher it starts and the version of the app it
+    replaces (`before`'s: the .dmg's release)."""
     info = plistlib.loads((MAC / "Info.plist").read_bytes())
-    return plistlib.dumps({**info, LAUNCHER_KEY: str(LAUNCHER)})
+    kept = {key: (before or {})[key] for key in ("CFBundleShortVersionString", "CFBundleVersion") if key in (before or {})}
+    return plistlib.dumps({**info, **kept, LAUNCHER_KEY: str(LAUNCHER)})
 
 
 def ours(app: Path) -> bool:
@@ -146,7 +148,11 @@ def make_mac(pair: tuple[str, str]) -> list[Path]:
     (app / "Contents/Resources/install.sh").unlink(missing_ok=True)
     (app / "Contents/MacOS").mkdir(parents=True, exist_ok=True)
     (app / "Contents/Resources").mkdir(exist_ok=True)
-    (app / "Contents/Info.plist").write_bytes(info_plist())
+    try:
+        before = plistlib.loads((app / "Contents/Info.plist").read_bytes())
+    except (OSError, plistlib.InvalidFileException):
+        before = None
+    (app / "Contents/Info.plist").write_bytes(info_plist(before))
     icon.write(pair, app / "Contents/Resources/volleyball-stats.icns")
     program, built = app / "Contents/MacOS/volleyball-stats", (MAC / "volleyball-stats").read_bytes()
     if not program.exists() or program.read_bytes() != built:

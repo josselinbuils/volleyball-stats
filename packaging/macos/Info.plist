@@ -8,8 +8,6 @@
   <key>CFBundleExecutable</key><string>volleyball-stats</string>
   <key>CFBundleIconFile</key><string>volleyball-stats</string>
   <key>CFBundlePackageType</key><string>APPL</string>
-  <key>CFBundleShortVersionString</key><string>2.0</string>
-  <key>CFBundleVersion</key><string>2</string>
   <key>LSMinimumSystemVersion</key><string>11.3</string>
   <key>LSApplicationCategoryType</key><string>public.app-category.sports</string>
   <key>NSHighResolutionCapable</key><true/>

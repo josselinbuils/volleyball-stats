@@ -1,5 +1,5 @@
 # setup.exe and volleyball-stats.dmg, built on demand (Actions → Installers → Run workflow), kept as the run's files.
-# With a release's tag, also put on that GitHub release (made if new, its text packaging/release/release.md): the
+# The installers' version is the tag's (v1.2: 1.2), "dev" without one. With a release's tag, also put on that GitHub release (made if new, its text packaging/release/release.md): the
 # download page, its links fixed (releases/latest/download/…).
 name: Installers
 on:
@@ -19,7 +19,8 @@ jobs:
       - name: setup.exe
         run: |
           if (-not (Get-Command iscc -ErrorAction SilentlyContinue)) { choco install innosetup --no-progress -y }
-          iscc packaging\windows\setup.iss
+          $version = "${{ inputs.release }}".TrimStart("v"); if (-not $version) { $version = "dev" }
+          iscc "/DVersion=$version" packaging\windows\setup.iss
       - uses: actions/upload-artifact@v4
         with:
           name: volleyball-stats-setup
@@ -29,7 +30,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: volleyball-stats.dmg
-        run: sh packaging/macos/build.sh
+        run: VERSION="$(echo "${{ inputs.release }}" | sed 's/^v//')" sh packaging/macos/build.sh
       - uses: actions/upload-artifact@v4
         with:
           name: volleyball-stats-dmg

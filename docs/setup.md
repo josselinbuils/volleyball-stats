@@ -25,9 +25,9 @@
 ## Install
 
 `install.sh` does it all and starts the app (`curl -LsSf https://raw.githubusercontent.com/josselinbuils/volleyball-stats/main/install.sh | sh`,
-or `./install.sh` in a copy): on Linux and WSL2 git, ffmpeg and uv when missing (apt) and a git clone; on a Mac uv
-(its own installer), the code from GitHub's archive (no git, no Homebrew, no password) and ffmpeg 9.1, a git checkout
-keeping Homebrew's tools. The code in `~/volleyball-stats` (`VOLLEYBALL_STATS_DIR` for another place),
+or `./install.sh` in a developer's git checkout, which it keeps): uv (its own installer), the code from GitHub's archive
+(no git: the app then updates it by itself), the libraries, the models, and ffmpeg 9.1 on a Mac (no Homebrew, no
+password); on Linux and WSL2 ffmpeg and curl through apt. The code in `~/volleyball-stats` (`VOLLEYBALL_STATS_DIR` for another place),
 `~/.local/bin/volleyball-stats` (`uv run stats`, carrying the PATH the tools were found on: a Mac's shortcut opens
 without Homebrew's). The app's start and the club's changes make the shortcut on that launcher again when
 `shortcut.VERSION` or the icon's colours change (`shortcut.py`), replacing the older `.bat` or `.command`: under WSL2 a
@@ -70,7 +70,7 @@ rights; run again, it only opens the app. `setup.exe` (`packaging/windows/setup.
 of its own; its uninstaller, in Windows' installed apps, removes the app and, if asked, the matches. A Mac's
 `volleyball-stats.dmg` (`packaging/macos/build.sh`, on a Mac) holds the Mac app to drag to Applications: its first open
 runs `install.sh` in Terminal, which opens it again once done, and its first start makes it the shortcut. Both are built by the "Installers" workflow (`.github/workflows/installers.yml`, started by hand); given a
-release's tag, it puts them on that GitHub release with its text (`packaging/release/release.md`, the screenshots of
+release's tag, it gives both its version (`v1.2`: 1.2, "dev" without a tag: no version written by hand) and puts them on that GitHub release with its text (`packaging/release/release.md`, the screenshots of
 SmartScreen and Gatekeeper beside it): the download page, whose links stay the same
 (`releases/latest/download/volleyball-stats-setup.exe`, `…/volleyball-stats.dmg`). The installers change rarely: they
 take the code from GitHub at install.

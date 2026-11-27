@@ -1,16 +1,21 @@
 ; setup.exe: install.ps1 run with no admin rights, in its own window (its steps and uv's bars), the app opening at the end.
 ; Its uninstaller runs the installed install.ps1 to remove the app, asking whether the matches go too.
 ;
-;   ISCC.exe packaging\windows\setup.iss    (Inno Setup 6.5 or later: GitHub's Windows runners have it)
+;   ISCC.exe /DVersion=1.2 packaging\windows\setup.iss    (Inno Setup 6.5 or later: GitHub's Windows runners have it)
+;
+; Its version is the release's tag, which the Installers workflow passes; "dev" built by hand without one.
 ;
 ; It changes rarely (SmartScreen's reputation is per file): the code comes from GitHub at install, then updates itself.
 
 #define Name "Volleyball Stats"
+#ifndef Version
+  #define Version "dev"
+#endif
 
 [Setup]
 AppId={{AA8FB1F0-2846-4A9B-BD8D-774F9FCE21B0}
 AppName={#Name}
-AppVersion=1.0
+AppVersion={#Version}
 AppPublisher=volleyball-stats
 AppPublisherURL=https://github.com/josselinbuils/volleyball-stats
 DefaultDirName={%USERPROFILE}\volleyball-stats

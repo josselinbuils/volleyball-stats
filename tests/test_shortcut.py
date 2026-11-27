@@ -55,12 +55,15 @@ class TestShortcut:
         for part in ("_CodeSignature", "Resources", "MacOS"):
             (dragged / "Contents" / part).mkdir(parents=True)
         (dragged / "Contents/Resources/install.sh").write_text("", encoding="utf-8")
+        (dragged / "Contents/Info.plist").write_bytes(plistlib.dumps({"CFBundleShortVersionString": "1.2", "CFBundleVersion": "1.2"}))
         before = tmp_path / "Applications" / "Volleyball Stats.app"
         (before / "Contents").mkdir(parents=True)
         (before / "Contents/Info.plist").write_bytes(shortcut.info_plist())
         assert shortcut.make_mac(PAIR) == [dragged]
         assert not before.exists() and not (dragged / "Contents/_CodeSignature").exists()
         assert sorted(p.name for p in (dragged / "Contents/Resources").iterdir()) == ["volleyball-stats.icns"]
+        # The release's version kept.
+        assert plistlib.loads((dragged / "Contents/Info.plist").read_bytes())["CFBundleShortVersionString"] == "1.2"
         monkeypatch.setattr(shortcut.doctor, "system", lambda: "mac")
         assert shortcut.mac_app() == dragged
         monkeypatch.setattr(shortcut, "unquarantined", lambda app: False)

@@ -158,7 +158,11 @@ La documentation détaillée est en anglais.
 
 ## Développement
 
+Clonez le dépôt et lancez `./install.sh` dedans : il garde votre copie (« Mettre à jour » dans l'application la met
+alors à jour avec git) et installe le reste.
+
 ```bash
+git clone https://github.com/josselinbuils/volleyball-stats && cd volleyball-stats && ./install.sh
 uv run pytest -q                                  # tests Python
 cd web && npm install && npm test && npm run build   # la page (Node 22), sa construction commitée
 ```
