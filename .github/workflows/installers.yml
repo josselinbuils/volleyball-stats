@@ -1,5 +1,5 @@
 # setup.exe and volleyball-stats.dmg, built on demand (Actions → Installers → Run workflow), kept as the run's files.
-# The installers' version is the tag's (v1.2: 1.2), "dev" without one. With a release's tag, also put on that GitHub release (made if new, its text packaging/release/release.md): the
+# The installers' version is the tag's (v1.2: 1.2), "dev" without one; the release's title "Volleyball Stats 1.2". With a release's tag, also put on that GitHub release (made if new, its text packaging/release/release.md): the
 # download page, its links fixed (releases/latest/download/…).
 name: Installers
 on:
@@ -52,9 +52,11 @@ jobs:
           merge-multiple: true
       - name: GitHub release
         run: |
+          # Its title: the app and the version (v1.2: "Volleyball Stats 1.2").
+          title="Volleyball Stats ${TAG#v}"
           if gh release view "$TAG" > /dev/null 2>&1; then
             gh release upload "$TAG" dist/* --clobber
-            gh release edit "$TAG" --notes-file packaging/release/release.md
+            gh release edit "$TAG" --title "$title" --notes-file packaging/release/release.md
           else
-            gh release create "$TAG" dist/* --target "$GITHUB_SHA" --title "Volleyball Stats" --notes-file packaging/release/release.md --latest
+            gh release create "$TAG" dist/* --target "$GITHUB_SHA" --title "$title" --notes-file packaging/release/release.md --latest
           fi
