@@ -1,7 +1,5 @@
 ## [Windows](https://github.com/josselinbuils/volleyball-stats/releases/latest/download/volleyball-stats-setup.exe) · [Mac](https://github.com/josselinbuils/volleyball-stats/releases/latest/download/volleyball-stats.dmg)
 
-[Français](#français) · [English](#english)
-
 ## Français
 
 Téléchargez, puis double-cliquez : Volleyball Stats s'installe et s'ouvre. La première fois prend de longues minutes.
