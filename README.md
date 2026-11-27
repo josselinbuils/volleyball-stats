@@ -34,7 +34,7 @@ From the video of a whole match, with no tagging by hand:
 - **A page to share:** static files that open from disk or host anywhere, in French and English, light
   or dark. With no footage by default, so no player shows on video without their consent.
 - **Your club's look:** its name, logo, colours and sponsors on every page.
-- **No command to learn:** one line installs it; importing a match, placing the court, following the analysis and
+- **No command to learn:** an installer sets it up; importing a match, placing the court, following the analysis and
   updating all happen in the browser.
 
 The only manual step is naming the players: the pipeline groups every touch into identities, a review
@@ -84,29 +84,22 @@ each one through the whole match and keeps the score. Each step is scored agains
 
 ### 1. Install
 
-You need a computer with a graphics card: an NVIDIA one, or a Mac with an Apple chip (slower). On Windows or a Mac,
-[download it](https://github.com/josselinbuils/volleyball-stats/releases/latest) and double-click the file: the page
-shows how to pass the system's warning about an unsigned file.
+You need a computer with a graphics card: an NVIDIA one, or a Mac with an Apple chip (slower).
 
-Or, in a terminal (on a Mac: the Terminal app), paste this line and press Enter:
+- **Windows:** download [`volleyball-stats-setup.exe`](https://github.com/josselinbuils/volleyball-stats/releases/latest/download/volleyball-stats-setup.exe) and double-click it. Windows warns once about an
+  unsigned file: **More info**, then **Run anyway**.
+- **Mac:** download [`volleyball-stats.dmg`](https://github.com/josselinbuils/volleyball-stats/releases/latest/download/volleyball-stats.dmg), drag Volleyball Stats to Applications and open it. macOS blocks
+  it once: **Done**, then **System Settings › Privacy & Security**, at the bottom, **Open Anyway**.
+- **Linux:** in a terminal, paste this line and press Enter:
 
 ```bash
 curl -LsSf https://raw.githubusercontent.com/josselinbuils/volleyball-stats/main/install.sh | sh
 ```
 
-It installs what is missing and opens the app in a window of its own. Next time, open "Volleyball Stats": in
+The first time takes many minutes, then the app opens; it then updates itself. Next time, open "Volleyball Stats": in
 Applications on a Mac (closing its window hides it, Quit closes it), on the desktop or in the Start menu on Windows
-(closing its window closes it), in the applications menu on Linux.
-
-On Windows, paste this in PowerShell instead:
-
-```powershell
-irm https://raw.githubusercontent.com/josselinbuils/volleyball-stats/main/install.ps1 | iex
-```
-
-Or run it in Ubuntu (WSL2): in PowerShell as administrator, run `wsl --install -d Ubuntu-24.04`, restart, open
-"Ubuntu" from the Start menu, choose a user name and password, then paste the first line there. See
-[Setup](docs/setup.md) for the NVIDIA driver.
+(closing its window closes it), in the applications menu on Linux. [The download page](https://github.com/josselinbuils/volleyball-stats/releases/latest) shows the warnings in
+pictures; installing from a terminal or in WSL2: [Setup](docs/setup.md#install).
 
 The app's "Diagnostics" button checks the graphics card, the memory, the disk space and the tools, and says what to
 fix; it also shows the app's log.

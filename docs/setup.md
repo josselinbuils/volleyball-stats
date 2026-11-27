@@ -12,8 +12,8 @@
 - **NVIDIA on Windows:** the Windows NVIDIA driver covers WSL2 too: do not install a Linux driver. The
   locked PyTorch is the CUDA 13 build. It supports the RTX 50 series and needs a recent driver (R580
   or later).
-- **Tools:** [`uv`](https://docs.astral.sh/uv/) (it installs Python 3.12+), `ffmpeg` and `git`.
-  Node.js 22 only to change the page: its build is committed.
+- **Tools:** [`uv`](https://docs.astral.sh/uv/) (it installs Python 3.12+) and `ffmpeg`, which the installers bring;
+  `git` only to develop, Node.js 22 only to change the page (its build is committed).
 - Code can be written on any machine and run on the GPU machine over SSH (e.g. VS Code Remote-SSH).
 - **Two machines** (the Mac and the PC): the matches' results go through the hosting server (`sync`, the review opening
   each match on its newest copy), the videos copied by hand: [hosting.md](hosting.md).
@@ -24,8 +24,22 @@
 
 ## Install
 
-`install.sh` does it all and starts the app (`curl -LsSf https://raw.githubusercontent.com/josselinbuils/volleyball-stats/main/install.sh | sh`,
-or `./install.sh` in a developer's git checkout, which it keeps): uv (its own installer), the code from GitHub's archive
+For users: on Windows `volleyball-stats-setup.exe`, on a Mac `volleyball-stats.dmg`, both from
+[the download page](https://github.com/josselinbuils/volleyball-stats/releases/latest) (the README says how); on Linux
+the line below. The same without the installers, from a terminal:
+
+```bash
+curl -LsSf https://raw.githubusercontent.com/josselinbuils/volleyball-stats/main/install.sh | sh   # Mac, Linux, WSL2
+```
+
+```powershell
+irm https://raw.githubusercontent.com/josselinbuils/volleyball-stats/main/install.ps1 | iex       # Windows, PowerShell
+```
+
+To develop: `git clone https://github.com/josselinbuils/volleyball-stats && cd volleyball-stats && ./install.sh`.
+
+`install.sh` does it all and starts the app (the `.dmg`'s app runs it too, or `./install.sh` in a developer's git
+checkout, which it keeps): uv (its own installer), the code from GitHub's archive
 (no git: the app then updates it by itself), the libraries, the models, and ffmpeg 9.1 on a Mac (no Homebrew, no
 password); on Linux and WSL2 ffmpeg and curl through apt. The code in `~/volleyball-stats` (`VOLLEYBALL_STATS_DIR` for another place),
 `~/.local/bin/volleyball-stats` (`uv run stats`, carrying the PATH the tools were found on: a Mac's shortcut opens
@@ -58,11 +72,7 @@ uv run python -c "import torch; print(torch.cuda.is_available(), torch.cuda.get_
 uv run python benchmarks/speed.py VIDEO          # projected processing time of a match
 ```
 
-Or natively on Windows, no WSL: `volleyball-stats-setup.exe` from [the download page](https://github.com/josselinbuils/volleyball-stats/releases/latest), or in PowerShell (not as administrator):
-
-```powershell
-irm https://raw.githubusercontent.com/josselinbuils/volleyball-stats/main/install.ps1 | iex
-```
+Or natively on Windows, no WSL: the installer or `install.ps1` above (in PowerShell, not as administrator).
 
 `install.ps1` installs uv, the code in `~\volleyball-stats` (GitHub's archive: no git), the libraries, ffmpeg 9.1 and
 the models, the launcher `~\.local\bin\volleyball-stats.cmd`, then opens the app, which makes its shortcuts. No admin

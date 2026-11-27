@@ -35,7 +35,7 @@ vous obtenez une page du match où chaque chiffre rejoue ses moments.
 - **Une page à partager :** des fichiers statiques qui s'ouvrent depuis le disque ou s'hébergent n'importe où, en
   français et en anglais, en clair ou en sombre. Sans vidéo par défaut : aucun joueur n'apparaît filmé sans son accord.
 - **Aux couleurs du club :** son nom, son logo, ses couleurs et ses partenaires sur chaque page.
-- **Aucune commande à apprendre :** une ligne l'installe ; importer un match, placer le terrain, suivre l'analyse et
+- **Aucune commande à apprendre :** un installeur la met en place ; importer un match, placer le terrain, suivre l'analyse et
   mettre à jour, tout se fait dans le navigateur.
 
 La seule étape à la main est de nommer les joueurs : l'analyse regroupe chaque touche par joueur, une page de relecture
@@ -86,29 +86,24 @@ tout le match et tient le score. Chaque étape est mesurée sur des annotations 
 
 ### 1. Installer
 
-Il faut un ordinateur avec une carte graphique : une NVIDIA, ou un Mac à puce Apple (plus lent). Sur Windows ou Mac,
-[téléchargez-la](https://github.com/josselinbuils/volleyball-stats/releases/latest) et double-cliquez sur le fichier :
-la page montre comment passer l'avertissement du système sur un fichier non signé.
+Il faut un ordinateur avec une carte graphique : une NVIDIA, ou un Mac à puce Apple (plus lent).
 
-Ou, dans un terminal (sur Mac : l'application Terminal), collez cette ligne puis appuyez sur Entrée :
+- **Windows :** téléchargez [`volleyball-stats-setup.exe`](https://github.com/josselinbuils/volleyball-stats/releases/latest/download/volleyball-stats-setup.exe) et double-cliquez dessus. Windows prévient une fois
+  pour un fichier non signé : **Informations complémentaires**, puis **Exécuter quand même**.
+- **Mac :** téléchargez [`volleyball-stats.dmg`](https://github.com/josselinbuils/volleyball-stats/releases/latest/download/volleyball-stats.dmg), glissez Volleyball Stats dans Applications et ouvrez-la.
+  macOS la bloque une fois : **Terminé**, puis **Réglages Système › Confidentialité et sécurité**, en bas, **Ouvrir
+  quand même**.
+- **Linux :** dans un terminal, collez cette ligne puis appuyez sur Entrée :
 
 ```bash
 curl -LsSf https://raw.githubusercontent.com/josselinbuils/volleyball-stats/main/install.sh | sh
 ```
 
-Elle installe ce qui manque et ouvre l'application dans sa propre fenêtre. Les fois suivantes, ouvrez « Volleyball
-Stats » : dans Applications sur Mac (fermer sa fenêtre la masque, Quitter la ferme), sur le bureau ou dans le menu
-Démarrer sur Windows (fermer sa fenêtre la ferme), dans le menu des applications sur Linux.
-
-Sur Windows, collez plutôt ceci dans PowerShell :
-
-```powershell
-irm https://raw.githubusercontent.com/josselinbuils/volleyball-stats/main/install.ps1 | iex
-```
-
-Ou lancez-la dans Ubuntu (WSL2) : dans PowerShell en administrateur, lancez `wsl --install -d Ubuntu-24.04`,
-redémarrez, ouvrez « Ubuntu » depuis le menu Démarrer, choisissez un nom d'utilisateur et un mot de passe, puis collez-y
-la première ligne. Voir [Installation](docs/setup.md) (en anglais) pour le pilote NVIDIA.
+La première fois prend de longues minutes, puis l'application s'ouvre ; elle se met ensuite à jour toute seule. Les
+fois suivantes, ouvrez « Volleyball Stats » : dans Applications sur Mac (fermer sa fenêtre la masque, Quitter la
+ferme), sur le bureau ou dans le menu Démarrer sur Windows (fermer sa fenêtre la ferme), dans le menu des applications
+sur Linux. [La page de téléchargement](https://github.com/josselinbuils/volleyball-stats/releases/latest) montre les avertissements en images ; installer depuis un terminal ou
+dans WSL2 : [Setup](docs/setup.md#install) (en anglais).
 
 Le bouton « Diagnostic » de l'application vérifie la carte graphique, la mémoire, l'espace disque et les outils, et dit
 quoi corriger ; il montre aussi le journal de l'application.

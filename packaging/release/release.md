@@ -18,15 +18,9 @@ Glissez Volleyball Stats dans Applications et ouvrez-la. macOS la bloque une foi
 
 <img src="https://raw.githubusercontent.com/josselinbuils/volleyball-stats/main/packaging/release/mac-1.png" width="240"> <img src="https://raw.githubusercontent.com/josselinbuils/volleyball-stats/main/packaging/release/mac-2.png" width="420">
 
-### Sans fichier
+### Linux
 
-Windows, dans PowerShell :
-
-```powershell
-irm https://raw.githubusercontent.com/josselinbuils/volleyball-stats/main/install.ps1 | iex
-```
-
-Mac, dans le Terminal :
+Dans un terminal, collez cette ligne puis appuyez sur Entrée :
 
 ```sh
 curl -LsSf https://raw.githubusercontent.com/josselinbuils/volleyball-stats/main/install.sh | sh
@@ -50,15 +44,9 @@ Drag Volleyball Stats to Applications and open it. macOS blocks it once: **Done*
 
 <img src="https://raw.githubusercontent.com/josselinbuils/volleyball-stats/main/packaging/release/mac-1.png" width="240"> <img src="https://raw.githubusercontent.com/josselinbuils/volleyball-stats/main/packaging/release/mac-2.png" width="420">
 
-### Without a file
+### Linux
 
-Windows, in PowerShell:
-
-```powershell
-irm https://raw.githubusercontent.com/josselinbuils/volleyball-stats/main/install.ps1 | iex
-```
-
-Mac, in the Terminal:
+In a terminal, paste this line and press Enter:
 
 ```sh
 curl -LsSf https://raw.githubusercontent.com/josselinbuils/volleyball-stats/main/install.sh | sh
