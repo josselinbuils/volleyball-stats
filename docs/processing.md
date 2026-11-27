@@ -130,7 +130,7 @@ The list shows the matches `match --players` has run on (`outputs/matches/VIDEO/
 being processed greyed out; "Changer de match" goes back to it from a review. Choosing another match opens it in the same server
 (`review_server.Server.open`), which waits for an apply in progress to end. `--video`, `--court`, `--squad` and `--roster` override what is saved; the match is also given by its name.
 `--outputs` is where the list looks, `--theme` the pages' club, `--port` the server's, `--no-browser` opens no page,
-`--with-window` stops it once the app's last window closes.
+`--with-window` stops it once the app's last window closes, `--with-app` once the Mac app that started it quits.
 
 `review` opens, on this machine only, on the **"Noms" tab** (below), then asks about the players the
 identity step is least sure of, most at stake first. Each question shows the player outlined on a

@@ -1316,6 +1316,11 @@ def main() -> None:
     if command == "stop":
         sys.exit(stop(port))
     opening = OPENING[command]
+    mac = shortcut.mac_app() if opening == "window" else None
+    if mac:
+        # The Mac app starts the server, tied to it (--with-app), and shows its page.
+        subprocess.run(["open", str(mac)], check=False)
+        return
     if already_open(port):
         print(f"Already open: http://127.0.0.1:{port}/", flush=True)
         if opening:

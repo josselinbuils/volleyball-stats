@@ -33,12 +33,16 @@ without Homebrew's). The app's start and the club's changes make the shortcut on
 `shortcut.VERSION` or the icon's colours change (`shortcut.py`), replacing the older `.bat` or `.command`: under WSL2 a
 Windows `.lnk` on the desktop and in the Start menu (`conhost.exe --headless wsl.exe …`, natively `cmd.exe` on
 `volleyball-stats.cmd`: no window, the icon in
-`%LOCALAPPDATA%`), on a Mac `Volleyball Stats.app`, the .dmg's in Applications or else one in `~/Applications` (`LSUIElement`: no Dock icon),
+`%LOCALAPPDATA%`), on a Mac `Volleyball Stats.app`, the .dmg's in Applications or else one in `~/Applications`,
 on Linux an applications menu entry. The icon (`icon.py`) is a volleyball in the club logo's two main colours (else its
 main colour, else blue and yellow), drawn with Pillow for the shortcut and as SVG for the pages' favicon (`icon.favicon`,
-named after its colours: Windows caches icons by path). The page opens in a window of its own (`--app`) of Chrome or Edge
-(Brave or Chromium too on a Mac or Linux), else in the browser (`app.app_window`), its title ending in "– Volleyball Stats" there. Closing
-it stops the server (`presence.py`; on a Mac an hour later, a closed window hiding an app there), once no job runs (Windows may stop WSL with it). The app's "Diagnostics" (`doctor.py`) checks the tools, the graphics card
+named after its colours: Windows caches icons by path). On a Mac that app is a native one (`packaging/macos/app.swift`, built by
+`app.sh` and committed, for Apple chips and Intel): the page in its own window (WebKit), its Dock icon; it starts the
+server (`stats server --with-app`) with a pipe on its stdin and the server stops once that pipe ends, when the app
+quits (⌘Q, the Dock), no timer. Closing its window only hides it, the Dock icon shows it again. `stats` opens that app
+when it is there (`shortcut.mac_app`). Elsewhere the page opens in a window of its own (`--app`) of Chrome or Edge
+(Brave or Chromium too on Linux), else in the browser (`app.app_window`), its title ending in "– Volleyball Stats" there. Closing
+it stops the server (`presence.py`), once no job runs (Windows may stop WSL with it). The app's "Diagnostics" (`doctor.py`) checks the tools, the graphics card
 and its driver, the memory, the disk, the models (downloaded there) and the code's version. By hand:
 
 On a Windows PC with an NVIDIA GPU:

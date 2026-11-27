@@ -1,6 +1,7 @@
 """The app's open windows, for `stats` (the review's --with-window) to stop once its last one closes: each page says it
 is open (/app/alive, every 30 s) and that it goes (/app/leaving, as it unloads). A reload or a match being opened leaves
-and comes back within AFTER_LEAVING_S; on macOS closing a window hides an app, its window back from its icon: HIDDEN_S. Started otherwise (`stats browser`, `stats server`), Ctrl+C stops it."""
+and comes back within AFTER_LEAVING_S. Started by the Mac app (--with-app), it stops once that app quits: its stdin, the
+app's pipe, ends; its window closed only hides it. Started otherwise (`stats browser`, `stats server`), Ctrl+C stops it."""
 
 import os
 import sys
@@ -11,7 +12,6 @@ from collections.abc import Callable
 # How long a page that left has to come back (a reload, the review of another match) before the app stops: a reload
 # after an apply comes while the server still works (the pictures), 5 s were too few (13 Nov).
 AFTER_LEAVING_S = 30.0
-HIDDEN_S = 3600.0
 # A page heard from no more for so long is gone without saying it (a browser that crashed); a minimized window's
 # timers may slow to once a minute, a sleeping one's longer.
 SILENT_S = 30 * 60.0
@@ -24,9 +24,8 @@ START_S = 120.0
 class Presence:
     """The pages open, each by its id and when it was last heard from."""
 
-    def __init__(self, now: Callable[[], float] = time.monotonic, after_leaving: float = AFTER_LEAVING_S):
+    def __init__(self, now: Callable[[], float] = time.monotonic):
         self.now = now
-        self.after_leaving = after_leaving
         self.started = now()
         self.pages: dict[str, float] = {}
         self.left_at: float | None = None
@@ -47,34 +46,55 @@ class Presence:
             self.left_at = self.now()
 
     def closed(self) -> bool:
-        """Whether every window has closed: none open, the last one gone `after_leaving` ago, none ever within
+        """Whether every window has closed: none open, the last one gone AFTER_LEAVING_S ago, none ever within
         START_S."""
         now = self.now()
         with self.lock:
             self.pages = {page: at for page, at in self.pages.items() if now - at < SILENT_S}
             if self.pages:
                 return False
-            if self.left_at is not None and now - self.left_at < self.after_leaving:
+            if self.left_at is not None and now - self.left_at < AFTER_LEAVING_S:
                 return False
             return now - self.started >= START_S or self.left_at is not None
 
 
 ON = False
-PAGES = Presence(after_leaving=HIDDEN_S if sys.platform == "darwin" else AFTER_LEAVING_S)
+APP = False
+PAGES = Presence()
+
+
+def app_quit() -> Callable[[], bool]:
+    """Whether the app that started this server has quit: its pipe on stdin, read to its end aside."""
+    ended = threading.Event()
+
+    def read() -> None:
+        try:
+            sys.stdin.buffer.read()
+        except (OSError, ValueError):
+            pass
+        ended.set()
+
+    threading.Thread(target=read, daemon=True).start()
+    return ended.is_set
 
 
 def watch(may_stop: Callable[[], bool], lock: Callable[[], object] | None = None) -> None:
-    """With --with-window: the server stopped once its windows closed and `may_stop` (no job, no apply running), the lock
-    `lock` gives taken first (no answer being saved). Called as the server starts listening."""
-    if not ON:
+    """With --with-window or --with-app: the server stopped once its windows closed or its app quit and `may_stop` (no
+    job, no apply running), the lock `lock` gives taken first (no answer being saved). Called as the server starts
+    listening."""
+    if APP:
+        gone, why = app_quit(), "Its app quit"
+    elif ON:
+        PAGES.listening()
+        gone, why = PAGES.closed, "Its last window closed"
+    else:
         return
-    PAGES.listening()
 
     def run() -> None:
         while True:
             time.sleep(1)
-            if PAGES.closed() and may_stop():
-                print("Its last window closed: stopped.", flush=True)
+            if gone() and may_stop():
+                print(f"{why}: stopped.", flush=True)
                 held = lock and lock()
                 if held:
                     held.acquire()

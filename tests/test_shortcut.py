@@ -1,3 +1,4 @@
+import hashlib
 import os
 import plistlib
 
@@ -19,9 +20,15 @@ class TestShortcut:
     def test_quotes_for_powershell(self):
         assert shortcut.ps_quote("C:\\Users\\O'Neil\\Desktop") == "'C:\\Users\\O''Neil\\Desktop'"
 
-    def test_describes_a_mac_app_with_no_dock_icon(self):
+    def test_describes_the_mac_app_with_its_launcher(self):
         info = plistlib.loads(shortcut.info_plist())
-        assert info["CFBundleExecutable"] == "volleyball-stats" and info["LSUIElement"] is True
+        assert info["CFBundleExecutable"] == "volleyball-stats" and info["VSLauncher"] == str(shortcut.LAUNCHER)
+
+    def test_has_the_mac_app_built_from_its_source(self):
+        source = (shortcut.MAC / "app.swift").read_bytes().replace(b"\r\n", b"\n")
+        built = (shortcut.MAC / "volleyball-stats.source").read_text(encoding="utf-8").strip()
+        # Built again by packaging/macos/app.sh after a change to app.swift.
+        assert hashlib.sha256(source).hexdigest() == built
 
     @pytest.mark.skipif(os.name == "nt", reason="a Mac's rights")
     def test_makes_a_mac_app_in_applications_only(self, tmp_path, monkeypatch):
@@ -36,7 +43,7 @@ class TestShortcut:
         assert made == [tmp_path / "Applications" / "Volleyball Stats.app"]
         assert list((tmp_path / "Desktop").iterdir()) == []
         program = made[0] / "Contents/MacOS/volleyball-stats"
-        assert program.stat().st_mode & 0o111 and f'nohup "{shortcut.LAUNCHER}"' in program.read_text(encoding="utf-8")
+        assert program.stat().st_mode & 0o111 and program.read_bytes() == (shortcut.MAC / "volleyball-stats").read_bytes()
         assert (made[0] / "Contents/Resources/volleyball-stats.icns").stat().st_size > 0
 
     @pytest.mark.skipif(os.name == "nt", reason="a Mac's rights")
@@ -54,6 +61,8 @@ class TestShortcut:
         assert shortcut.make_mac(PAIR) == [dragged]
         assert not before.exists() and not (dragged / "Contents/_CodeSignature").exists()
         assert sorted(p.name for p in (dragged / "Contents/Resources").iterdir()) == ["volleyball-stats.icns"]
+        monkeypatch.setattr(shortcut.doctor, "system", lambda: "mac")
+        assert shortcut.mac_app() == dragged
         monkeypatch.setattr(shortcut, "unquarantined", lambda app: False)
         assert shortcut.make_mac(PAIR) == []
 

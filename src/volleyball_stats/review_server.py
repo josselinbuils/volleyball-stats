@@ -1315,7 +1315,7 @@ class Server(ThreadingHTTPServer):
     def arguments(self) -> list[str]:
         """This server's options with the match open now, its page already open: to start it again."""
         review = self.review
-        return [*([str(review.match)] if review else []), "--outputs", str(self.out), "--theme", self.theme, "--port", str(self.port), "--roster", str(self.roster), "--no-browser", *(["--with-window"] if presence.ON else [])]
+        return [*([str(review.match)] if review else []), "--outputs", str(self.out), "--theme", self.theme, "--port", str(self.port), "--roster", str(self.roster), "--no-browser", *(["--with-window"] if presence.ON else []), *(["--with-app"] if presence.APP else [])]
 
     def may_stop(self) -> bool:
         """Whether the app may stop now (`presence`): no match being opened, no job, no apply nor what it leaves for later."""
@@ -1497,9 +1497,10 @@ def main() -> None:
     parser.add_argument("--port", type=int, default=PORT)
     parser.add_argument("--no-browser", action="store_true", help="Do not open the page in the browser")
     parser.add_argument("--with-window", action="store_true", help="Stop once the app's last window closes, no job running (`stats`)")
+    parser.add_argument("--with-app", action="store_true", help="Stop once the Mac app quits (its pipe on stdin ends), no job running")
     args = parser.parse_args()
     applog.start(app.LOG)
-    presence.ON = args.with_window
+    presence.ON, presence.APP = args.with_window, args.with_app
     if args.match is None:
         return serve(args.outputs, args.theme, args.port, not args.no_browser, args.roster)
     if not args.match.exists() and (args.outputs / args.match).is_dir():

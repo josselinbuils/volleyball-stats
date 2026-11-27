@@ -159,6 +159,8 @@ class TestSwitch:
         args = two.arguments()
 
         assert args[0] == str(two.out / "a") and "--no-browser" in args and "--with-window" in args
+        monkeypatch.setattr(presence, "APP", True)
+        assert "--with-app" in two.arguments()
 
 
 class TestMatchList:

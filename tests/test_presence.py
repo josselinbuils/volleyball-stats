@@ -1,3 +1,6 @@
+import os
+import time
+
 from volleyball_stats import presence
 
 
@@ -44,16 +47,6 @@ class TestPresence:
         clock.at += 1
         assert open_.closed()
 
-    def test_stays_hidden_longer(self):
-        clock = Clock()
-        open_ = presence.Presence(clock, after_leaving=presence.HIDDEN_S)
-        open_.seen("a")
-        open_.left("a")
-        clock.at = presence.HIDDEN_S - 1
-        assert not open_.closed()
-        clock.at = presence.HIDDEN_S
-        assert open_.closed()
-
     def test_stays_for_a_page_coming_back(self):
         open_, clock = pages()
         open_.seen("a")
@@ -71,3 +64,16 @@ class TestPresence:
         assert not open_.closed()
         clock.at = presence.SILENT_S
         assert open_.closed()
+
+    def test_tells_the_app_quit_once_its_pipe_ends(self, monkeypatch):
+        read, write = os.pipe()
+        monkeypatch.setattr(presence.sys, "stdin", os.fdopen(read))
+        gone = presence.app_quit()
+        time.sleep(0.1)
+        assert not gone()
+        os.close(write)
+        for _ in range(100):
+            if gone():
+                break
+            time.sleep(0.01)
+        assert gone()

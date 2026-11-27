@@ -17,12 +17,15 @@ from volleyball_stats import club_settings, doctor, icon
 
 NAME = "Volleyball Stats"
 # Bumped when the shortcut changes: each machine's is made again once.
-VERSION = 4
+VERSION = 5
 # install.sh's, or on Windows the installer's (`uv run stats` in the code's folder).
 LAUNCHER = Path.home() / (".local/bin/volleyball-stats.cmd" if os.name == "nt" else ".local/bin/volleyball-stats")
 MADE = Path.home() / ".local/share/volleyball-stats/shortcut"
 BUNDLE_ID = "io.github.josselinbuils.volleyball-stats"
 APPLICATIONS = Path("/Applications")
+# The Mac app's program and description (packaging/macos/app.sh), and the key giving it the launcher.
+MAC = Path(__file__).resolve().parents[2] / "packaging/macos"
+LAUNCHER_KEY = "VSLauncher"
 ONE_AT_A_TIME = threading.Lock()
 
 
@@ -94,24 +97,9 @@ def wsl_path(windows: str) -> Path:
 
 
 def info_plist() -> bytes:
-    """A Mac app's description: no Dock icon of its own, the page being in the browser."""
-    return plistlib.dumps(
-        {
-            "CFBundleName": NAME,
-            "CFBundleDisplayName": NAME,
-            "CFBundleIdentifier": BUNDLE_ID,
-            "CFBundleExecutable": "volleyball-stats",
-            "CFBundleIconFile": "volleyball-stats",
-            "CFBundlePackageType": "APPL",
-            "CFBundleShortVersionString": "1.0",
-            "LSUIElement": True,
-        }
-    )
-
-
-# Apart from the app's own process, which ends: macOS opens an app still running again only through it (a click on its
-# icon would do nothing), the window then coming from a new start (`stats` finding the app open).
-MAC_PROGRAM = '#!/bin/sh\nnohup "{launcher}" >/dev/null 2>&1 </dev/null &\n'
+    """The Mac app's description (packaging/macos's), with the launcher it starts."""
+    info = plistlib.loads((MAC / "Info.plist").read_bytes())
+    return plistlib.dumps({**info, LAUNCHER_KEY: str(LAUNCHER)})
 
 
 def ours(app: Path) -> bool:
@@ -123,13 +111,26 @@ def ours(app: Path) -> bool:
 
 def unquarantined(app: Path) -> bool:
     """Whether `app` has no quarantine left, removed if needed: macOS would call a quarantined app changed damaged."""
-    subprocess.run(["xattr", "-dr", "com.apple.quarantine", str(app)], capture_output=True)
-    return subprocess.run(["xattr", "-p", "com.apple.quarantine", str(app)], capture_output=True).returncode != 0
+    subprocess.run(["/usr/bin/xattr", "-dr", "com.apple.quarantine", str(app)], capture_output=True)
+    return subprocess.run(["/usr/bin/xattr", "-p", "com.apple.quarantine", str(app)], capture_output=True).returncode != 0
+
+
+def mac_app() -> Path | None:
+    """The Mac app this module made, which opens the app in its window: None elsewhere or before it was made."""
+    if doctor.system() != "mac":
+        return None
+    for app in (APPLICATIONS / f"{NAME}.app", Path.home() / "Applications" / f"{NAME}.app"):
+        try:
+            if LAUNCHER_KEY in plistlib.loads((app / "Contents/Info.plist").read_bytes()):
+                return app
+        except (OSError, plistlib.InvalidFileException):
+            continue
+    return None
 
 
 def make_mac(pair: tuple[str, str]) -> list[Path]:
-    """`Volleyball Stats.app`: the .dmg's in Applications made the shortcut, else one in the user's Applications
-    (Launchpad, Spotlight); those made before elsewhere (the desktop) removed."""
+    """`Volleyball Stats.app` (app.swift): the .dmg's in Applications made the shortcut, else one in the user's
+    Applications (Launchpad, Spotlight); those made before elsewhere (the desktop) removed."""
     home = Path.home()
     dragged = APPLICATIONS / f"{NAME}.app"
     app = dragged if dragged.is_dir() and os.access(dragged / "Contents", os.W_OK) else home / "Applications" / f"{NAME}.app"
@@ -139,16 +140,20 @@ def make_mac(pair: tuple[str, str]) -> list[Path]:
         if old != app and ours(old):
             shutil.rmtree(old, ignore_errors=True)
     (home / "Desktop" / f"{NAME}.command").unlink(missing_ok=True)
-    # Written in place: the .dmg's signature, its installer and its program replaced.
+    # Written in place, the app possibly running: the .dmg's signature and installer gone, its program replaced by a
+    # new file when it changed (a running program's file rewritten would kill it).
     shutil.rmtree(app / "Contents/_CodeSignature", ignore_errors=True)
     (app / "Contents/Resources/install.sh").unlink(missing_ok=True)
     (app / "Contents/MacOS").mkdir(parents=True, exist_ok=True)
     (app / "Contents/Resources").mkdir(exist_ok=True)
     (app / "Contents/Info.plist").write_bytes(info_plist())
     icon.write(pair, app / "Contents/Resources/volleyball-stats.icns")
-    program = app / "Contents/MacOS/volleyball-stats"
-    program.write_text(MAC_PROGRAM.format(launcher=LAUNCHER), encoding="utf-8")
-    program.chmod(0o755)
+    program, built = app / "Contents/MacOS/volleyball-stats", (MAC / "volleyball-stats").read_bytes()
+    if not program.exists() or program.read_bytes() != built:
+        fresh = program.with_name(".volleyball-stats")
+        fresh.write_bytes(built)
+        fresh.chmod(0o755)
+        os.replace(fresh, program)
     # Finder and the Dock keep an app's icon until it changes.
     os.utime(app)
     return [app]
