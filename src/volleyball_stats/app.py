@@ -1,6 +1,7 @@
 """The app: the one command to start, everything else in the browser.
 
-    uv run stats [MATCH] [--port PORT]           the app in a window of its own (the shortcut's), stopped with it
+    uv run stats [MATCH] [--port PORT]           the app in a window of its own (the shortcut's), stopped with it; on a
+                                                 Mac the Mac app, once made (its list, MATCH unused)
     uv run stats browser [MATCH] [--port PORT]   the app in a browser tab
     uv run stats server [MATCH] [--port PORT]    the app, opening nothing (a restart: the page is open)
     uv run stats stop [--port PORT]              stops it

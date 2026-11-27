@@ -1,5 +1,7 @@
 <div align="center">
 
+**English** · [Français](README.fr.md)
+
 # volleyball-stats
 
 **Per-player volleyball statistics from one camera on the sideline.**
@@ -92,8 +94,9 @@ Or, in a terminal (on a Mac: the Terminal app), paste this line and press Enter:
 curl -LsSf https://raw.githubusercontent.com/josselinbuils/volleyball-stats/main/install.sh | sh
 ```
 
-It installs what is missing, puts a "Volleyball Stats" shortcut on the desktop and opens the app in a window of its
-own. Next time, open that shortcut; closing its window closes the app.
+It installs what is missing and opens the app in a window of its own. Next time, open "Volleyball Stats": in
+Applications on a Mac (closing its window hides it, Quit closes it), on the desktop or in the Start menu on Windows
+(closing its window closes it), in the applications menu on Linux.
 
 On Windows, paste this in PowerShell instead:
 
@@ -110,9 +113,10 @@ fix; it also shows the app's log.
 
 ### 2. Film a match
 
-One fixed camera on a sideline, in line with the net, about 6 m away and 3.6 m high, framing both end
-lines. Film in 4K (2.7K minimum) at 50 fps with the exposure locked. See [Recording](docs/recording.md)
-for the stand, the camera settings and the lens calibration.
+One fixed camera on a sideline, in line with the net, as high as possible (3 m or more) and far enough back to frame
+both end lines. Film in 4K (2.7K minimum) at 50 fps with the exposure locked. The app's "Filming a match" shows the
+placement and the settings, "Test the framing" checks it. See [Recording](docs/recording.md) for a full setup and the
+lens calibration.
 
 ### 3. Everything else, in the app
 
@@ -126,8 +130,8 @@ for the stand, the camera settings and the lens calibration.
 
 "Club" sets your club's name, logo, colours, teams and sponsors, the same on every page. The match page is in
 `outputs/matches/MATCH/site/index.html`. The app's Site tab zips the pages for any host ("Export the site"), or uploads
-them to your own server ([setting one up](docs/hosting.md#your-own-server)), the review's "Put online" then. When a new version of the code is out,
-the app offers to update.
+them to your own server ([setting one up](docs/hosting.md#your-own-server)), the review's "Put online" then. When a new version is out,
+the app updates itself while idle.
 
 Developers start it with `uv run stats` (`uv run stats --help` for the others). Each step also has its command, with every option:
 [Processing a match](docs/processing.md).

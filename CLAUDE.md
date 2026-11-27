@@ -8,6 +8,9 @@ Action 3, 4K 50 fps; their processing PC: RTX 5080 under WSL2.
 ## Rules
 
 - At a session's start, `git fetch`, then warn the owner if the branch is behind its remote.
+- `README.md` and `README.fr.md`, and the French and English sections of `packaging/release/release.md`, say the same:
+  change one, change the other in the same commit (`tests/test_readme.py` compares their sections, pictures, links and
+  commands, not their words).
 - Speak English with the owner; the page and the review page open in French (fr first, then en, in
   `web/src/locales/`). UX first: understandable by anyone, never traded for performance.
 - Interface text stays light (the owner's rule): the fewest words a viewer needs, judged on all they see together, without

@@ -141,11 +141,11 @@ A bad framing costs a match: check it before.
 
 ## 6. The recording guide in the app
 
-- [x] Done (26 Nov): "Filmer un match" (`GuideDialog`), on the list and in the framing check
+- [x] Done (26 Nov, made generic 27 Nov): "Filmer un match" (`GuideDialog`), on the list and in the framing check
 
 `recording.md` for anyone: one screen (the list's menu, and linked from the framing check and the first run) with the
-placement as a drawing (SVG, no real footage), the settings for the known cameras, what to bring (the checklist), the
-fan and the battery. The fewest words: the drawing says most.
+placement as a drawing (SVG, no real footage), the settings any camera needs, what to bring (the checklist). No
+distance nor gear of the owner's: those stay in `recording.md`. The fewest words: the drawing says most.
 
 - Touches: a new screen in the app's code (`LOCAL`), locales fr then en; `recording.md` stays the long version.
 - Done when: the screen reads at phone width without horizontal scroll, light and dark.
@@ -452,3 +452,9 @@ One line per session: date, what was done, what is next.
 - 26 Nov: step 10 built: "Premiers pas" on the list, the review's intro. Checked in a fresh install at phone width,
   light and dark: each step ticks, the next one's button opens its screen (the club, the guide, the framing, the match,
   the Site tab), hide and back. The owner's install has steps 2-7 done, the club's teams not picked yet. Next: step 11 (the owner's).
+- 27 Nov, the owner's first test on a fresh Mac (8 GB): the guide made generic (three numbered steps, the settings any
+  camera needs); the list's warnings named ("Mémoire", "Espace disque"), memory in GiB (8 GB showed 9); the Mac app
+  native (`packaging/macos/app.swift`: its window, its Dock icon, the server living as long as it, `--with-app`),
+  dragged from the `.dmg` to Applications and made the shortcut there, none on the desktop; an install without git
+  updates itself when idle (`app.auto_update`); the download page and the README in French and English. The new `.dmg`
+  waits for a release (the Installers workflow, the owner's).
