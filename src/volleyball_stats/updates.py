@@ -184,4 +184,10 @@ def replace(source: Path, target: Path) -> None:
 if __name__ == "__main__":
     if len(sys.argv) != 3 or sys.argv[1] != "install":
         sys.exit(__doc__.split("\n\n")[-1])
+    try:
+        import certifi  # noqa: F401
+    except ImportError:
+        # The installers run this file under uv alone: again with certifi, for tls().
+        if os.environ.get("UV"):
+            sys.exit(subprocess.run([os.environ["UV"], "run", "--no-project", "--with", "certifi", "--python", sys.executable, "--", "python", "-I", *sys.argv]).returncode)
     print(f"Code {install(Path(sys.argv[2]))[:7]} in {sys.argv[2]}", flush=True)

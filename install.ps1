@@ -95,7 +95,7 @@ $global:VolleyballStatsFailed = $false
       New-Item -ItemType Directory $work | Out-Null
       Invoke-WebRequest "$raw/src/volleyball_stats/updates.py" -OutFile "$work\updates.py" -UseBasicParsing
       Push-Location $work
-      & $uv run --no-project --with certifi --python 3.12 -- python -I "$work\updates.py" install $dir
+      & $uv run --no-project --python 3.12 -- python -I "$work\updates.py" install $dir
       Check 'download'
       Pop-Location
       Remove $work
