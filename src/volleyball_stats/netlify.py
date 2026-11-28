@@ -19,7 +19,7 @@ import urllib.request
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
-from volleyball_stats import club_settings, files, hosted, jobs, matches, web
+from volleyball_stats import club_settings, files, hosted, jobs, matches, updates, web
 
 API = os.environ.get("VOLLEYBALL_STATS_NETLIFY_API", "https://api.netlify.com/api/v1")
 AUTHORIZE = os.environ.get("VOLLEYBALL_STATS_NETLIFY_APP", "https://app.netlify.com") + "/authorize?response_type=ticket&ticket={ticket}"
@@ -67,7 +67,7 @@ def request(method: str, path: str, token: str | None = None, body: dict | None 
     for attempt in range(TRIES):
         last = attempt == TRIES - 1
         try:
-            with urllib.request.urlopen(urllib.request.Request(API + path, data=data, method=method, headers=headers), timeout=timeout) as answer:
+            with urllib.request.urlopen(urllib.request.Request(API + path, data=data, method=method, headers=headers), timeout=timeout, context=updates.tls()) as answer:
                 text = answer.read()
             return json.loads(text) if text.strip() else None
         except urllib.error.HTTPError as error:

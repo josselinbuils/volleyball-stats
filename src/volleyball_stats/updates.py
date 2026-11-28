@@ -8,6 +8,7 @@ code is there.
     python updates.py install DIR    # the code in DIR, or brought up to date
 """
 
+import functools
 import json
 import os
 import re
@@ -17,7 +18,6 @@ import subprocess
 import sys
 import tempfile
 import time
-import urllib.error
 import urllib.request
 import zipfile
 from pathlib import Path
@@ -57,21 +57,21 @@ def commit(root: Path) -> str | None:
     return found["commit"] if found else None
 
 
+@functools.cache
+def tls() -> ssl.SSLContext:
+    """The system's root certificates and Mozilla's (certifi, when installed): a Windows holds only the roots it fetched
+    for its own connections, so Python alone can miss GitHub's."""
+    context = ssl.create_default_context()
+    try:
+        import certifi
+    except ImportError:
+        return context
+    context.load_verify_locations(certifi.where())
+    return context
+
+
 def get(url: str, timeout: float = 30):
-    request = urllib.request.Request(url, headers=AGENT)
-    try:
-        return urllib.request.urlopen(request, timeout=timeout)
-    except urllib.error.URLError as error:
-        if sys.platform != "win32" or not isinstance(error.reason, ssl.SSLCertVerificationError):
-            raise
-    # Windows fetches a root certificate the first time one of its own connections needs it, Python reads only those it
-    # has: a PowerShell request brings it.
-    script = f"[Net.ServicePointManager]::SecurityProtocol = 'Tls12'; Invoke-WebRequest '{url}' -Method Head -UseBasicParsing | Out-Null"
-    try:
-        subprocess.run(["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", script], capture_output=True, timeout=60, stdin=subprocess.DEVNULL)
-    except (OSError, subprocess.TimeoutExpired):
-        pass
-    return urllib.request.urlopen(request, timeout=timeout)
+    return urllib.request.urlopen(urllib.request.Request(url, headers=AGENT), timeout=timeout, context=tls())
 
 
 def feed() -> list[str]:

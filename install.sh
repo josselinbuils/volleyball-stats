@@ -54,7 +54,7 @@ if [ ! -d "$DIR/.git" ] && [ ! -f "$DIR/.install.json" ]; then
   say "Téléchargement de volleyball-stats…" "Downloading volleyball-stats…"
   work=$(mktemp -d)
   curl -fsSL "$RAW/src/volleyball_stats/updates.py" -o "$work/updates.py"
-  (cd "$work" && uv run --no-project --python 3.12 -- python -I "$work/updates.py" install "$DIR")
+  (cd "$work" && uv run --no-project --with certifi --python 3.12 -- python -I "$work/updates.py" install "$DIR")
   rm -rf "$work"
 fi
 cd "$DIR"

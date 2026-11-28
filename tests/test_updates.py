@@ -62,22 +62,7 @@ def test_behind_and_newer_by_the_feed(monkeypatch, tmp_path):
     assert updates.newer(SHA_B, "d" * 40) and not updates.newer("d" * 40, SHA_A) and not updates.newer("d" * 40, "e" * 40)
 
 
-def test_get_on_windows_has_powershell_bring_a_missing_root_certificate(monkeypatch):
-    tries, ran = [], []
-
-    def urlopen(request, timeout):
-        tries.append(request.full_url)
-        if len(tries) == 1:
-            raise updates.urllib.error.URLError(updates.ssl.SSLCertVerificationError("unable to get local issuer certificate"))
-        return "answer"
-
-    monkeypatch.setattr(updates.urllib.request, "urlopen", urlopen)
-    monkeypatch.setattr(updates.subprocess, "run", lambda command, **_: ran.append(command))
-    monkeypatch.setattr(updates.sys, "platform", "win32")
-    assert updates.get(updates.ARCHIVE) == "answer"
-    assert tries == [updates.ARCHIVE] * 2 and updates.ARCHIVE in ran[0][-1]
-
-    tries.clear()
-    monkeypatch.setattr(updates.sys, "platform", "darwin")
-    with pytest.raises(updates.urllib.error.URLError):
-        updates.get(updates.ARCHIVE)
+def test_tls_trusts_githubs_root_when_the_system_lacks_it(monkeypatch):
+    monkeypatch.setattr(updates.ssl, "create_default_context", lambda: updates.ssl.SSLContext(updates.ssl.PROTOCOL_TLS_CLIENT))
+    roots = [dict(field[0] for field in cert["subject"]).get("commonName") for cert in updates.tls.__wrapped__().get_ca_certs()]
+    assert "USERTrust ECC Certification Authority" in roots

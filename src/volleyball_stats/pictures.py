@@ -12,7 +12,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from volleyball_stats import decode, files, likeness
+from volleyball_stats import decode, files, likeness, updates
 from volleyball_stats.court import LENGTH, WIDTH
 from volleyball_stats.identity import finder, read_identities
 from volleyball_stats.web import page_data, patch_people, versioned
@@ -117,7 +117,7 @@ def upscaler() -> tuple | None:
     try:
         if not UPSCALER.exists():
             UPSCALER.parent.mkdir(parents=True, exist_ok=True)
-            with urllib.request.urlopen(UPSCALER_URL) as response:
+            with urllib.request.urlopen(UPSCALER_URL, context=updates.tls()) as response:
                 files.write_bytes(UPSCALER, response.read())
     except OSError:
         return None

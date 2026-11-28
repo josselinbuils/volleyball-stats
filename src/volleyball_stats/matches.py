@@ -39,7 +39,7 @@ from pathlib import Path, PurePath, PurePosixPath
 import cv2
 import numpy as np
 
-from volleyball_stats import club_settings, files, jobs, points, tables, timeline, transfer, video_copies, web
+from volleyball_stats import club_settings, files, jobs, points, tables, timeline, transfer, updates, video_copies, web
 from volleyball_stats.web import CLUB, club_page
 
 TEMPLATE = Path(__file__).with_name("matches_site")
@@ -466,7 +466,7 @@ def _head(url: str, headers: dict | None = None, wait: float = 2.0):
     request = urllib.request.Request(url, method="HEAD", headers={"User-Agent": "volleyball-stats", **(headers or {})})
     for attempt in range(HEAD_TRIES):
         try:
-            return urllib.request.build_opener(_Stay).open(request, timeout=20)
+            return urllib.request.build_opener(_Stay, urllib.request.HTTPSHandler(context=updates.tls())).open(request, timeout=20)
         except urllib.error.HTTPError:
             raise
         except OSError as error:
