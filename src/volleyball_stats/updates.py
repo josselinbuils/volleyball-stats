@@ -12,10 +12,12 @@ import json
 import os
 import re
 import shutil
+import ssl
 import subprocess
 import sys
 import tempfile
 import time
+import urllib.error
 import urllib.request
 import zipfile
 from pathlib import Path
@@ -56,7 +58,20 @@ def commit(root: Path) -> str | None:
 
 
 def get(url: str, timeout: float = 30):
-    return urllib.request.urlopen(urllib.request.Request(url, headers=AGENT), timeout=timeout)
+    request = urllib.request.Request(url, headers=AGENT)
+    try:
+        return urllib.request.urlopen(request, timeout=timeout)
+    except urllib.error.URLError as error:
+        if sys.platform != "win32" or not isinstance(error.reason, ssl.SSLCertVerificationError):
+            raise
+    # Windows fetches a root certificate the first time one of its own connections needs it, Python reads only those it
+    # has: a PowerShell request brings it.
+    script = f"[Net.ServicePointManager]::SecurityProtocol = 'Tls12'; Invoke-WebRequest '{url}' -Method Head -UseBasicParsing | Out-Null"
+    try:
+        subprocess.run(["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", script], capture_output=True, timeout=60, stdin=subprocess.DEVNULL)
+    except (OSError, subprocess.TimeoutExpired):
+        pass
+    return urllib.request.urlopen(request, timeout=timeout)
 
 
 def feed() -> list[str]:
